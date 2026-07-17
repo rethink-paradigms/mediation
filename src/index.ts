@@ -124,6 +124,18 @@ export type {
   PublishCapabilityInput,
 } from "./ports/capability-store.ts";
 
+// --- ABS-A3 FsCapabilityStore (D5 L2/L4; FS adapter only) ---
+export {
+  FsCapabilityStore,
+  createFsCapabilityStore,
+  resolveFsModule,
+} from "./adapters/capability/fs-store.ts";
+export type {
+  FsCapabilityStoreOptions,
+  FsCapabilitySource,
+  FsResolvedModule,
+} from "./adapters/capability/fs-store.ts";
+
 // --- ABS-B2 Mediation as SurfacePort (CLI uses SurfacePort only) ---
 export {
   createMediationSurface,
