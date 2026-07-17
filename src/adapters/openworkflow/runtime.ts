@@ -117,6 +117,8 @@ function toEngagementInput(input: DispatchInput): EngagementWorkflowInput {
     task: input.task,
     sessionRef: input.resume,
     requestId: input.clientRequestId,
+    parkIntent: input.parkIntent,
+    parkReason: input.parkReason,
   };
 }
 

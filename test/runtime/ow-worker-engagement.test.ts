@@ -176,4 +176,67 @@ describe("OW worker + engagement leaf (S5c, mock mind)", () => {
     assert.equal(result?.kind, "failed");
     assert.equal(result?.error?.code, "CAPABILITY_RESOLVE_FAILED");
   });
+
+  it("LIFE-P1: parkIntent → status not completed until wake signal", async () => {
+    if (!workerStarted) {
+      await worker.start();
+      workerStarted = true;
+    }
+
+    const handle = await runtime.dispatch({
+      agent: { name: "park-s5c-p1", rootDir: FIXTURE_ROOT },
+      task: "park on worker",
+      parkIntent: true,
+      parkReason: "worker-p1-park",
+      clientRequestId: "s5c-park-p1-1",
+    });
+
+    // Poll until leaf has parked (join) while OW run still open (Model P).
+    const deadline = Date.now() + 8_000;
+    let parkedJoin = await join.getByRunId(handle.runId);
+    let mid = await runtime.getStatus(handle.runId);
+    while (Date.now() < deadline) {
+      if (mid.state === "completed" || mid.state === "failed" || mid.state === "canceled") {
+        break;
+      }
+      if (parkedJoin?.status === "parked") {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 20));
+      parkedJoin = await join.getByRunId(handle.runId);
+      mid = await runtime.getStatus(handle.runId);
+    }
+
+    assert.ok(parkedJoin, "join row after leaf park");
+    assert.equal(parkedJoin.status, "parked");
+    // Must not have completed before wake.
+    assert.notEqual(
+      mid.state,
+      "completed",
+      `expected non-completed while parked-wait, got ${JSON.stringify(mid)}`,
+    );
+    assert.notEqual(mid.state, "failed", `unexpected fail: ${JSON.stringify(mid)}`);
+    assert.notEqual(mid.state, "canceled");
+
+    // Wake — signals are not buffered; wait is active after leaf returned parked.
+    await runtime.sendSignal(handle.runId, "wake", {
+      payloadText: "p1-interim-ack",
+    });
+
+    const status = await runtime.wait(handle.runId, { timeoutMs: 10_000 });
+    assert.equal(
+      status.state,
+      "completed",
+      `expected completed after wake, got ${JSON.stringify(status)}`,
+    );
+    const result = status.result as {
+      kind?: string;
+      reason?: string;
+      sessionRef?: string;
+    };
+    // P1 interim: complete with parked payload (P2 will continue on Pi).
+    assert.equal(result?.kind, "parked");
+    assert.equal(result?.reason, "worker-p1-park");
+    assert.equal(typeof result?.sessionRef, "string");
+  });
 });

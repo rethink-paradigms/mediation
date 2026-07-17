@@ -13,6 +13,12 @@ export type DispatchInput = {
   readonly resume?: SessionRef;
   /** Correlation for join; runtime assigns runId if omitted. */
   readonly clientRequestId?: string;
+  /**
+   * When true, engagement leaf returns Parked after idle (D1 stand-in).
+   * Serialized into EngagementWorkflowInput for the worker leaf.
+   */
+  readonly parkIntent?: boolean;
+  readonly parkReason?: string;
 };
 
 export type DispatchHandle = {
