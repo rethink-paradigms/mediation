@@ -153,5 +153,11 @@ No Pi / OpenWorkflow / createAgentSession in this slice. Ownership limited to de
 ## 8. Git (post-commit)
 
 ```
-# filled after commit — see git log --oneline
+5ba27e3 S1b: YamlDefinitionLoader maps agent.yaml into inert AgentDefinition.
+7a47e1c Fix second_door gauge false positive on comments after merge.
+681be9b Merge branch 'slice/S5a-ow-runtime-port'.
 ```
+
+Branch: `slice/S1b-yaml-definition-loader`  
+Tip (implementation): `5ba27e3f65e48f1c387ff2727063d02757316924`  
+`npm run check` at tip: green (52 pass, gauges OK).
