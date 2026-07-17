@@ -29,7 +29,7 @@ describe("createPiPresenceFactory (integration, fake Pi)", () => {
         session: fake,
         sessionRefValue: fake.sessionFile ?? fake.sessionId,
       }),
-      packResolverOptions: { homeDir: NO_HOME },
+      fsStoreOptions: { homeDir: NO_HOME },
       projectRoot: FIXTURE_ROOT,
     });
 
@@ -75,7 +75,7 @@ describe("createPiPresenceFactory (integration, fake Pi)", () => {
         const ref = req.resume ? String(req.resume) : fake.sessionId;
         return { session: fake, sessionRefValue: ref };
       },
-      packResolverOptions: { homeDir: NO_HOME },
+      fsStoreOptions: { homeDir: NO_HOME },
       projectRoot: FIXTURE_ROOT,
     });
 
@@ -101,7 +101,7 @@ describe("createPiPresenceFactory (integration, fake Pi)", () => {
         session: fake,
         sessionRefValue: fake.sessionId,
       }),
-      packResolverOptions: { homeDir: NO_HOME },
+      fsStoreOptions: { homeDir: NO_HOME },
       projectRoot: FIXTURE_ROOT,
     });
 
@@ -115,7 +115,7 @@ describe("createPiPresenceFactory (integration, fake Pi)", () => {
       () => factory.materialize(definition),
       (err: unknown) => {
         assert.ok(err instanceof MediationError);
-        assert.equal(err.code, "PACK_RESOLVE_FAILED");
+        assert.equal(err.code, "CAPABILITY_RESOLVE_FAILED");
         return true;
       },
     );

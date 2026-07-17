@@ -8,10 +8,10 @@
  * - Extension load paths come **only** from `OpenSessionRequest.packPlan.packs[].path`
  *   (`PackRef.path`). This adapter does not re-resolve capability ids, scan definition
  *   extensions, or invent filesystem paths.
- * - Upstream (`DefaultPresenceFactory`) produces that plan either via PackResolver or
- *   via A7 `packLoadPlanFromCapabilityArtifacts` (capability `entry.modulePath` /
- *   `locator.path` → `PackRef.path`). Capability-style module paths are already
- *   adapted into PackRef before openSession.
+ * - Upstream (`DefaultPresenceFactory`) produces that plan solely via
+ *   CapabilityResolver → `packLoadPlanFromCapabilityArtifacts` (capability
+ *   `entry.modulePath` / `locator.path` → `PackRef.path`). Module paths are
+ *   already adapted into PackRef before openSession.
  * - Domain identity remains CapabilityId / pack id; path strings are adapter material
  *   for Pi `additionalExtensionPaths` only.
  */

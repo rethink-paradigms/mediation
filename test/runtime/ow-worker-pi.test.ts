@@ -40,7 +40,7 @@ function makePiFactory() {
       });
       return { session: fake, sessionRefValue: ref };
     },
-    packResolverOptions: { homeDir: NO_HOME },
+    fsStoreOptions: { homeDir: NO_HOME },
     projectRoot: FIXTURE_ROOT,
   });
 }
@@ -173,7 +173,7 @@ describe("OW worker + Pi factory (S5d, fake session)", () => {
       error?: { code?: string };
     };
     assert.equal(result?.kind, "failed");
-    assert.equal(result?.error?.code, "PACK_RESOLVE_FAILED");
+    assert.equal(result?.error?.code, "CAPABILITY_RESOLVE_FAILED");
     assert.equal(engine.opened.length, openedBefore);
   });
 });

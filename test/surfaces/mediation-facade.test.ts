@@ -13,15 +13,14 @@ import { createYamlDefinitionLoader } from "../../src/adapters/definition/yaml-d
 import { createLocalMediation } from "../../src/adapters/compose.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  agentDefForPacks,
-  createPackResolver,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import { createMediationSurface } from "../../src/adapters/surface/mediation-surface.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { Mediation } from "../../src/app/mediation.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { parseArgs, printHelp, runCli } from "../../src/surfaces/cli.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEF_FIXTURE = path.resolve(HERE, "../../fixtures/definition/case-basic");
@@ -33,11 +32,13 @@ describe("Mediation façade (S7)", () => {
       engine: new MockEnginePort({
         sessionRefFactory: () => asSessionRef("facade-sess"),
       }),
-      packResolver: createPackResolver({
+      toPackSnapshot,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: PACK_ROOT,
         homeDir: path.join(PACK_ROOT, "_no_home"),
       }),
-      toPackSnapshot,
-      projectRoot: PACK_ROOT,
+    ),
     });
 
     const loader = {
@@ -173,11 +174,13 @@ describe("createMediationSurface (ABS-B2)", () => {
       engine: new MockEnginePort({
         sessionRefFactory: () => asSessionRef("surface-sess"),
       }),
-      packResolver: createPackResolver({
+      toPackSnapshot,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: PACK_ROOT,
         homeDir: path.join(PACK_ROOT, "_no_home"),
       }),
-      toPackSnapshot,
-      projectRoot: PACK_ROOT,
+    ),
     });
     const loader = {
       load: async (ref: { name: string; rootDir: string }) =>

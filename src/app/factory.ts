@@ -2,9 +2,8 @@
  * DefaultPresenceFactory — sole constructor of Presence (D0 P1 / D1).
  * App layer: domain + ports only (no Pi / OW / adapters).
  *
- * ABS-A7: optional CapabilityResolver path — agent-layer CapabilitySpec from
- * definition → resolve fail-closed → PackLoadPlan adapted for openSession.
- * Without resolver: existing PackResolver path (backward compat).
+ * CUT: CapabilityResolver is the only materialize resolve path (D5).
+ * PackLoadPlan is adapted at the edge for openSession only.
  */
 
 import type {
@@ -29,8 +28,6 @@ import type {
 import type { CapabilityResolver } from "../ports/capability-resolver.ts";
 import type { CapabilityArtifact } from "../ports/capability-store.ts";
 import type { EnginePort } from "../ports/engine.ts";
-import type { PackResolver } from "../ports/pack-resolver.ts";
-import { packRequestFromDefinition } from "../ports/pack-resolver.ts";
 import { DefaultAgentPresence } from "./presence.ts";
 
 /** Snapshots a resolved pack plan at materialize (typically adapters/packs.toPackSnapshot). */
@@ -41,23 +38,13 @@ export type PackSnapshotFn = (
 
 export type DefaultPresenceFactoryDeps = {
   readonly engine: EnginePort;
-  /**
-   * Legacy pack path (backward compat). Used when `capabilityResolver` is omitted.
-   * Still required so existing call sites keep working without a resolver.
-   */
-  readonly packResolver: PackResolver;
   /** Injected so app does not import adapters (layer rule). */
   readonly toPackSnapshot: PackSnapshotFn;
   /**
-   * Optional override for project root when resolving packs.
-   * Default: definition.rootDir or MaterializeOptions.cwd.
+   * Sole resolve path for materialize (D5 / CUT).
+   * Required — no PackResolver dual path.
    */
-  readonly projectRoot?: string;
-  /**
-   * When provided, materialize prefers CapabilityResolver over PackResolver
-   * (ABS-A7). Fail-closed if resolve plan.ok is false.
-   */
-  readonly capabilityResolver?: CapabilityResolver;
+  readonly capabilityResolver: CapabilityResolver;
 };
 
 const PACK_SOURCES: ReadonlySet<string> = new Set([
@@ -156,22 +143,18 @@ function capabilityDiagnosticToPack(d: CapabilityDiagnostic): PackDiagnostic {
 }
 
 /**
- * Materialize: resolve packs/capabilities → openSession → snapshotted Presence (idle).
+ * Materialize: CapabilityResolver → PackLoadPlan adapt → openSession → Presence.
  * Fail-closed when resolve plan is not ok (D2 / D5).
  */
 export class DefaultPresenceFactory implements PresenceFactory {
   private readonly engine: EnginePort;
-  private readonly packResolver: PackResolver;
   private readonly toPackSnapshot: PackSnapshotFn;
-  private readonly projectRoot?: string;
-  private readonly capabilityResolver?: CapabilityResolver;
+  private readonly capabilityResolver: CapabilityResolver;
   private seq = 0;
 
   constructor(deps: DefaultPresenceFactoryDeps) {
     this.engine = deps.engine;
-    this.packResolver = deps.packResolver;
     this.toPackSnapshot = deps.toPackSnapshot;
-    this.projectRoot = deps.projectRoot;
     this.capabilityResolver = deps.capabilityResolver;
   }
 
@@ -179,18 +162,12 @@ export class DefaultPresenceFactory implements PresenceFactory {
     definition: AgentDefinition,
     opts?: MaterializeOptions,
   ): Promise<AgentPresence> {
-    const projectRoot =
-      this.projectRoot ?? opts?.cwd ?? definition.rootDir;
-
-    const plan = await this.resolvePackPlan(definition, projectRoot);
+    const plan = await this.resolvePackPlan(definition);
 
     if (!plan.ok) {
-      const viaCapability = this.capabilityResolver !== undefined;
       throw new MediationError(
-        viaCapability ? "CAPABILITY_RESOLVE_FAILED" : "PACK_RESOLVE_FAILED",
-        viaCapability
-          ? `Capability resolve failed for agent "${definition.name}" (ok=false)`
-          : `Pack resolve failed for agent "${definition.name}" (ok=false)`,
+        "CAPABILITY_RESOLVE_FAILED",
+        `Capability resolve failed for agent "${definition.name}" (ok=false)`,
         {
           diagnostics: plan.diagnostics,
           packs: plan.packs,
@@ -241,28 +218,19 @@ export class DefaultPresenceFactory implements PresenceFactory {
     return presence;
   }
 
-  /**
-   * Prefer CapabilityResolver when injected; else PackResolver (legacy).
-   */
+  /** Sole path: CapabilityResolver → pack plan adapter (no PackResolver fork). */
   private async resolvePackPlan(
     definition: AgentDefinition,
-    projectRoot: string,
   ): Promise<PackLoadPlan> {
-    if (this.capabilityResolver) {
-      const spec = capabilitySpecFromDefinition(definition);
-      const result = await this.capabilityResolver.resolve({
-        layers: [{ kind: "agent", spec }],
-      });
-      // Always adapt artifacts so path-missing surfaces as fail-closed even when
-      // store hits returned ok plan with non-path entries.
-      return packLoadPlanFromCapabilityArtifacts(
-        result.artifacts,
-        result.plan,
-      );
-    }
-
-    return this.packResolver.resolve(packRequestFromDefinition(definition), {
-      projectRoot,
+    const spec = capabilitySpecFromDefinition(definition);
+    const result = await this.capabilityResolver.resolve({
+      layers: [{ kind: "agent", spec }],
     });
+    // Always adapt artifacts so path-missing surfaces as fail-closed even when
+    // store hits returned ok plan with non-path entries.
+    return packLoadPlanFromCapabilityArtifacts(
+      result.artifacts,
+      result.plan,
+    );
   }
 }

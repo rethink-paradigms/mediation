@@ -1,7 +1,8 @@
 /**
- * ABS-A7: DefaultPresenceFactory + optional CapabilityResolver.
- * MemoryCapabilityStore + createCapabilityResolver → Settled;
+ * CUT / ABS-A7: DefaultPresenceFactory + required CapabilityResolver.
+ * MemoryCapabilityStore / FsCapabilityStore → Settled;
  * missing capability fail-closed (no openSession).
+ * No PackResolver dual path.
  */
 
 import assert from "node:assert/strict";
@@ -9,14 +10,12 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
 import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 import { MemoryCapabilityStore } from "../../src/adapters/capability/memory-store.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  PackResolverImpl,
-  agentDefForPacks,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import {
   capabilitySpecFromDefinition,
   DefaultPresenceFactory,
@@ -47,7 +46,7 @@ function moduleArtifact(
   };
 }
 
-describe("DefaultPresenceFactory + CapabilityResolver (ABS-A7)", () => {
+describe("DefaultPresenceFactory + CapabilityResolver (CUT)", () => {
   it("materialize with MemoryCapabilityStore + createCapabilityResolver → Settled", async () => {
     const fooPath = path.join(FIXTURE_ROOT, "tools", "internal", "foo");
     const barPath = path.join(FIXTURE_ROOT, "extensions", "bar");
@@ -60,9 +59,7 @@ describe("DefaultPresenceFactory + CapabilityResolver (ABS-A7)", () => {
     });
     const factory = new DefaultPresenceFactory({
       engine,
-      packResolver: new PackResolverImpl({ homeDir: NO_HOME }),
       toPackSnapshot,
-      projectRoot: FIXTURE_ROOT,
       capabilityResolver: createCapabilityResolver(store),
     });
 
@@ -95,6 +92,33 @@ describe("DefaultPresenceFactory + CapabilityResolver (ABS-A7)", () => {
     assert.equal(presence.status, "disposed");
   });
 
+  it("materialize with default FsCapabilityStore path → Settled", async () => {
+    const engine = new MockEnginePort({
+      sessionRefFactory: () => asSessionRef("mock-session-fs"),
+    });
+    const factory = new DefaultPresenceFactory({
+      engine,
+      toPackSnapshot,
+      capabilityResolver: createCapabilityResolver(
+        createFsCapabilityStore({
+          projectRoot: FIXTURE_ROOT,
+          homeDir: NO_HOME,
+        }),
+      ),
+    });
+
+    const definition = agentDefForPacks(
+      FIXTURE_ROOT,
+      ["foo", "bar"],
+      "case-cut-fs",
+    );
+    const presence = await factory.materialize(definition);
+    assert.equal(presence.packSnapshot.packs.length, 2);
+    const outcome = await presence.engage({ text: "fs capability path" });
+    assert.equal(outcome.kind, "settled");
+    await presence.dispose();
+  });
+
   it("missing capability fails materialize (no openSession)", async () => {
     const store = new MemoryCapabilityStore([
       moduleArtifact("foo", "/virtual/foo"),
@@ -102,9 +126,7 @@ describe("DefaultPresenceFactory + CapabilityResolver (ABS-A7)", () => {
     const engine = new MockEnginePort();
     const factory = new DefaultPresenceFactory({
       engine,
-      packResolver: new PackResolverImpl({ homeDir: NO_HOME }),
       toPackSnapshot,
-      projectRoot: FIXTURE_ROOT,
       capabilityResolver: createCapabilityResolver(store),
     });
 
@@ -124,30 +146,6 @@ describe("DefaultPresenceFactory + CapabilityResolver (ABS-A7)", () => {
       },
     );
     assert.equal(engine.opened.length, 0);
-  });
-
-  it("without capabilityResolver keeps PackResolver path (backward compat)", async () => {
-    const engine = new MockEnginePort({
-      sessionRefFactory: () => asSessionRef("mock-pack-path"),
-    });
-    const factory = new DefaultPresenceFactory({
-      engine,
-      packResolver: new PackResolverImpl({ homeDir: NO_HOME }),
-      toPackSnapshot,
-      projectRoot: FIXTURE_ROOT,
-      // no capabilityResolver
-    });
-
-    const definition = agentDefForPacks(
-      FIXTURE_ROOT,
-      ["foo", "bar"],
-      "case-a7-legacy-packs",
-    );
-    const presence = await factory.materialize(definition);
-    assert.equal(presence.packSnapshot.packs.length, 2);
-    const outcome = await presence.engage({ text: "legacy packs" });
-    assert.equal(outcome.kind, "settled");
-    await presence.dispose();
   });
 
   it("capabilitySpecFromDefinition maps extensions, tools, skills", () => {

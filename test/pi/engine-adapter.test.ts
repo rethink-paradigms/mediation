@@ -16,6 +16,8 @@ import {
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import type { OpenSessionRequest } from "../../src/ports/engine.ts";
 import { FakePiSession } from "./fake-session.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
@@ -153,11 +155,13 @@ describe("PiEngineAdapter (fake Pi session)", () => {
     });
     const factory = new DefaultPresenceFactory({
       engine,
-      packResolver: new PackResolverImpl({
+      toPackSnapshot,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
         homeDir: path.join(FIXTURE_ROOT, "_no_home"),
       }),
-      toPackSnapshot,
-      projectRoot: FIXTURE_ROOT,
+    ),
     });
 
     const definition = agentDefForPacks(FIXTURE_ROOT, ["foo", "bar"], "case-basic");

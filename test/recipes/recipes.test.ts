@@ -10,10 +10,7 @@ import { fileURLToPath } from "node:url";
 
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  agentDefForPacks,
-  createPackResolver,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { Mediation } from "../../src/app/mediation.ts";
 import { dispatch } from "../../src/app/recipes/dispatch.ts";
@@ -30,6 +27,8 @@ import type {
   RuntimePort,
   RuntimeStatus,
 } from "../../src/ports/runtime.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
@@ -40,9 +39,13 @@ function makeLocalMediation(sessionRef = "recipe-sess"): Mediation {
     engine: new MockEnginePort({
       sessionRefFactory: () => asSessionRef(sessionRef),
     }),
-    packResolver: createPackResolver({ homeDir: NO_HOME }),
     toPackSnapshot,
-    projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: NO_HOME,
+      }),
+    ),
   });
   const loader = {
     load: async (ref: { name: string; rootDir: string }) =>
@@ -93,9 +96,13 @@ function makeMediationWithRuntime(runtime: RuntimePort): Mediation {
     engine: new MockEnginePort({
       sessionRefFactory: () => asSessionRef("recipe-rt-sess"),
     }),
-    packResolver: createPackResolver({ homeDir: NO_HOME }),
     toPackSnapshot,
-    projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: NO_HOME,
+      }),
+    ),
   });
   const loader = {
     load: async (ref: { name: string; rootDir: string }) =>

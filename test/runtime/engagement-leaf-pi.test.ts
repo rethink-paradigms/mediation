@@ -36,7 +36,7 @@ describe("engagement leaf + Pi factory (S5b, fake session)", () => {
         session: fake,
         sessionRefValue: fake.sessionFile ?? fake.sessionId,
       }),
-      packResolverOptions: { homeDir: NO_HOME },
+      fsStoreOptions: { homeDir: NO_HOME },
       projectRoot: FIXTURE_ROOT,
     });
     const join = new MemoryJoinStore();
@@ -90,7 +90,7 @@ describe("engagement leaf + Pi factory (S5b, fake session)", () => {
         const ref = req.resume ? String(req.resume) : fake.sessionId;
         return { session: fake, sessionRefValue: ref };
       },
-      packResolverOptions: { homeDir: NO_HOME },
+      fsStoreOptions: { homeDir: NO_HOME },
       projectRoot: FIXTURE_ROOT,
     });
     const join = new MemoryJoinStore();
@@ -127,7 +127,7 @@ describe("engagement leaf + Pi factory (S5b, fake session)", () => {
         session: fake,
         sessionRefValue: fake.sessionId,
       }),
-      packResolverOptions: { homeDir: NO_HOME },
+      fsStoreOptions: { homeDir: NO_HOME },
       projectRoot: FIXTURE_ROOT,
     });
     const join = new MemoryJoinStore();
@@ -149,7 +149,7 @@ describe("engagement leaf + Pi factory (S5b, fake session)", () => {
 
     assert.equal(output.kind, "failed");
     if (output.kind === "failed") {
-      assert.equal(output.error.code, "PACK_RESOLVE_FAILED");
+      assert.equal(output.error.code, "CAPABILITY_RESOLVE_FAILED");
     }
     assert.equal(join.size(), 0);
     assert.equal(engine.opened.length, 0);

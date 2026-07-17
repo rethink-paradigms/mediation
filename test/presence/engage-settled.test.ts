@@ -9,14 +9,13 @@ import { fileURLToPath } from "node:url";
 
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  PackResolverImpl,
-  agentDefForPacks,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { evaluateSettled, maySettle } from "../../src/app/settled-policy.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { MediationError } from "../../src/domain/errors.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
@@ -24,11 +23,13 @@ const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 function makeFactory(engine: MockEnginePort): DefaultPresenceFactory {
   return new DefaultPresenceFactory({
     engine,
-    packResolver: new PackResolverImpl({
-      homeDir: path.join(FIXTURE_ROOT, "_no_home"),
-    }),
     toPackSnapshot,
-    projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: path.join(FIXTURE_ROOT, "_no_home"),
+      }),
+    ),
   });
 }
 
@@ -130,7 +131,7 @@ describe("materialize + engage → Settled (mock engine)", () => {
       () => factory.materialize(definition),
       (err: unknown) => {
         assert.ok(err instanceof MediationError);
-        assert.equal(err.code, "PACK_RESOLVE_FAILED");
+        assert.equal(err.code, "CAPABILITY_RESOLVE_FAILED");
         return true;
       },
     );

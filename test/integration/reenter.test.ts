@@ -10,14 +10,13 @@ import { fileURLToPath } from "node:url";
 import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  agentDefForPacks,
-  createPackResolver,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { Mediation } from "../../src/app/mediation.ts";
 import { asRunId } from "../../src/domain/engagement.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
@@ -29,9 +28,13 @@ function makeMediation() {
     engine: new MockEnginePort({
       sessionRefFactory: () => asSessionRef("reenter-sess"),
     }),
-    packResolver: createPackResolver({ homeDir: NO_HOME }),
     toPackSnapshot,
-    projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: NO_HOME,
+      }),
+    ),
   });
   const loader = {
     load: async (ref: { name: string; rootDir: string }) =>

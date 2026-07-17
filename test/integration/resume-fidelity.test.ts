@@ -10,15 +10,14 @@ import { fileURLToPath } from "node:url";
 import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  PackResolverImpl,
-  agentDefForPacks,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import { createPiPresenceFactory } from "../../src/adapters/wiring.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { asRunId } from "../../src/domain/engagement.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { FakePiSession } from "../pi/fake-session.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
@@ -29,9 +28,13 @@ describe("resume fidelity (S3, mock engine)", () => {
     const engine = new MockEnginePort();
     const factory = new DefaultPresenceFactory({
       engine,
-      packResolver: new PackResolverImpl({ homeDir: NO_HOME }),
       toPackSnapshot,
-      projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: NO_HOME,
+      }),
+    ),
     });
     const definition = agentDefForPacks(
       FIXTURE_ROOT,
@@ -79,9 +82,13 @@ describe("resume fidelity (S3, mock engine)", () => {
     });
     const factory = new DefaultPresenceFactory({
       engine,
-      packResolver: new PackResolverImpl({ homeDir: NO_HOME }),
       toPackSnapshot,
-      projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: NO_HOME,
+      }),
+    ),
     });
     const join = new MemoryJoinStore();
     const definition = agentDefForPacks(FIXTURE_ROOT, ["foo"], "join-resume");
@@ -125,7 +132,7 @@ describe("resume fidelity (S3, Pi factory fake session)", () => {
         });
         return { session: fake, sessionRefValue: ref };
       },
-      packResolverOptions: { homeDir: NO_HOME },
+      fsStoreOptions: { homeDir: NO_HOME },
       projectRoot: FIXTURE_ROOT,
     });
 

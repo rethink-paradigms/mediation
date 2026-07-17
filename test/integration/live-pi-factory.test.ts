@@ -47,7 +47,7 @@ describe("live Pi factory (MEDIATION_LIVE_PI=1)", { skip: !LIVE }, () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "mediation-s2c-live-"));
     const { factory, engine } = createPiPresenceFactory({
       inMemorySession: true,
-      packResolverOptions: { homeDir: path.join(tmp, "_no_home") },
+      fsStoreOptions: { homeDir: path.join(tmp, "_no_home") },
       projectRoot: tmp,
       log: (level, msg, data) => {
         // eslint-disable-next-line no-console
