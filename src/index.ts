@@ -124,6 +124,13 @@ export type {
   PublishCapabilityInput,
 } from "./ports/capability-store.ts";
 
+// --- ABS-R1 RegistryCapabilityStore stub (D5 L5; in-memory, no HTTP) ---
+export {
+  RegistryCapabilityStore,
+  createRegistryCapabilityStore,
+} from "./adapters/capability/registry-store.ts";
+export type { RegistryCapabilityStoreOptions } from "./adapters/capability/registry-store.ts";
+
 // --- ABS-B2 Mediation as SurfacePort (CLI uses SurfacePort only) ---
 export {
   createMediationSurface,
