@@ -1,8 +1,8 @@
 /**
  * Gauge: pack_plan_hash + pack_parity for fixtures/packs/*
  *
- * Observational: prints hashes; exit 0 unless fixture tree missing.
- * Usage: node --experimental-strip-types scripts/gauges/pack-plan.ts
+ * Uses FS capability search (resolveFsModule) — production materialize uses
+ * CapabilityResolver + FsCapabilityStore. Observational: prints hashes.
  */
 
 import fs from "node:fs";
@@ -10,10 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { packPlanHash } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  PackResolverImpl,
-  planHasErrors,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { packLoadPlanFromFsSpecs } from "../../test/helpers/fs-pack-plan.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(HERE, "../..");
@@ -33,9 +30,7 @@ export function runPackPlanGauges(fixturesRoot: string = FIXTURES): PackPlanGaug
     throw new Error(`fixtures root missing: ${fixturesRoot}`);
   }
 
-  const resolver = new PackResolverImpl({
-    homeDir: path.join(fixturesRoot, "_no_home"),
-  });
+  const homeDir = path.join(fixturesRoot, "_no_home");
   const rows: PackPlanGaugeRow[] = [];
 
   const cases = fs
@@ -63,8 +58,8 @@ export function runPackPlanGauges(fixturesRoot: string = FIXTURES): PackPlanGaug
       extensionSpecs = agent.extensionSpecs ?? agent.extensions ?? [];
     }
 
-    const planA = resolver.resolveSpecs(extensionSpecs, { projectRoot: root });
-    const planB = resolver.resolveSpecs(extensionSpecs, { projectRoot: root });
+    const planA = packLoadPlanFromFsSpecs(extensionSpecs, root, homeDir);
+    const planB = packLoadPlanFromFsSpecs(extensionSpecs, root, homeDir);
     const hashA = packPlanHash(planA);
     const hashB = packPlanHash(planB);
     const parity = hashA === hashB ? 0 : 1;
@@ -72,10 +67,11 @@ export function runPackPlanGauges(fixturesRoot: string = FIXTURES): PackPlanGaug
     rows.push({
       fixture: name,
       pack_count: planA.packs.length,
-      ok: planA.ok && !planHasErrors(planA),
+      ok: planA.ok && !planA.diagnostics.some((d) => d.level === "error"),
       pack_plan_hash: hashA,
       pack_parity_delta: parity,
-      error_diagnostics: planA.diagnostics.filter((d) => d.level === "error").length,
+      error_diagnostics: planA.diagnostics.filter((d) => d.level === "error")
+        .length,
     });
   }
 
@@ -84,7 +80,7 @@ export function runPackPlanGauges(fixturesRoot: string = FIXTURES): PackPlanGaug
 
 function main(): void {
   const rows = runPackPlanGauges();
-  console.log("=== pack gauges (S1) ===");
+  console.log("=== pack gauges (FS capability search) ===");
   for (const r of rows) {
     console.log(
       [
@@ -101,7 +97,9 @@ function main(): void {
     console.log("(no fixtures under fixtures/packs)");
   }
   const anyParity = rows.some((r) => r.pack_parity_delta !== 0);
-  console.log(`summary pack_parity_delta_total=${anyParity ? 1 : 0} fixtures=${rows.length}`);
+  console.log(
+    `summary pack_parity_delta_total=${anyParity ? 1 : 0} fixtures=${rows.length}`,
+  );
 }
 
 const isMain =

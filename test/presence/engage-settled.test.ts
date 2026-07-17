@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { evaluateSettled, maySettle } from "../../src/app/settled-policy.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";

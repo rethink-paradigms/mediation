@@ -11,7 +11,7 @@ import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { runEngagementLeaf } from "../../src/adapters/openworkflow/workflows/engagement.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { asRunId } from "../../src/domain/engagement.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";

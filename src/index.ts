@@ -97,12 +97,6 @@ export type {
 
 export type { JoinStore } from "./ports/join.ts";
 export type { DefinitionLoader } from "./ports/definition-loader.ts";
-export type {
-  PackResolver,
-  PackResolveRequest,
-  PackResolveOptions,
-} from "./ports/pack-resolver.ts";
-export { packRequestFromDefinition } from "./ports/pack-resolver.ts";
 
 // --- ABS-B1 SurfacePort (connectors only; CLI adapter is B2) ---
 export type {
@@ -215,10 +209,6 @@ export {
   toPackSnapshot,
   packPlanHash,
 } from "./adapters/packs/pack-snapshot.ts";
-export {
-  PackResolverImpl,
-  createPackResolver,
-} from "./adapters/packs/resolve-packs.ts";
 
 // --- S1b YamlDefinitionLoader (inert agent.yaml → AgentDefinition) ---
 export {

@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { runEngagementLeaf } from "../../src/adapters/openworkflow/workflows/engagement.ts";
 import type { EngagementWorkflowInput } from "../../src/adapters/openworkflow/types.ts";
-import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { createPiPresenceFactory } from "../../src/adapters/wiring.ts";
 import { asRunId } from "../../src/domain/engagement.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";

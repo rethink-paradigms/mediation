@@ -16,7 +16,7 @@ import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { OpenWorkflowRuntime } from "../../src/adapters/openworkflow/runtime.ts";
 import { registerEngagementWorkflow } from "../../src/adapters/openworkflow/register-engagement.ts";
 import { ENGAGEMENT_WORKFLOW_NAME } from "../../src/adapters/openworkflow/types.ts";
-import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { createPiPresenceFactory } from "../../src/adapters/wiring.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { FakePiSession } from "../pi/fake-session.ts";

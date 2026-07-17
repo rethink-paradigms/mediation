@@ -8,7 +8,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { createPiPresenceFactory } from "../../src/adapters/wiring.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { MediationError } from "../../src/domain/errors.ts";

@@ -18,7 +18,7 @@ import { OpenWorkflowRuntime } from "../../src/adapters/openworkflow/runtime.ts"
 import { registerEngagementWorkflow } from "../../src/adapters/openworkflow/register-engagement.ts";
 import { ENGAGEMENT_WORKFLOW_NAME } from "../../src/adapters/openworkflow/types.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";

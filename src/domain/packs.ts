@@ -1,6 +1,7 @@
 /**
  * Pack resolution plan / snapshot types.
- * Pure domain — PackResolverImpl lives in adapters (S1).
+ * Pure domain — engine-facing pack plan shapes (bridge from CapabilityPlan).
+ * FS search is adapters/capability/fs-store (D5); not a parallel product resolver.
  */
 
 /** Where a pack was found in the ordered search. */

@@ -15,7 +15,7 @@ import { createCapabilityResolver } from "../../src/adapters/capability/resolve.
 import { MemoryCapabilityStore } from "../../src/adapters/capability/memory-store.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../helpers/agent-def.ts";
 import {
   capabilitySpecFromDefinition,
   DefaultPresenceFactory,
