@@ -156,17 +156,20 @@ Node note: `node --test test/` does not recurse under Node 26; scripts use `test
 ## 7. Git (after S5a commit)
 
 ```
+ef94d52 S5a: record evidence git log tip and check surface.
 e8c41a6 S5a: OpenWorkflow RuntimePort, engagement leaf, and MemoryJoinStore.
 5f5dad6 S5a wip: preserve concurrent work before worktree isolation.
 5c034af S0g: stabilize evidence packet git log wording.
 ```
+
+Exact tip SHA after the last evidence edit is whatever `git rev-parse --short HEAD` reports on a clean product tree.
 
 ```
 On branch slice/S5a-ow-runtime-port
 # clean of product changes; untracked WORKTREE.md is local worktree guidance only
 ```
 
-`npm run check` green at tip `e8c41a6` (29 tests, gauges OK).
+`npm run check` green (29 tests, gauges OK) on the RuntimePort landing and evidence tip.
 
 ---
 
