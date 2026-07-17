@@ -178,6 +178,23 @@ export type {
   ReenterInput,
   ReenterResult,
 } from "./app/mediation.ts";
+
+// --- ABS-B3 experience recipes (thin Mediation wrappers; D0 P6) ---
+export type { Recipe, RecipeContext } from "./app/recipes/types.ts";
+export { solo } from "./app/recipes/solo.ts";
+export type { SoloInput, SoloResult } from "./app/recipes/solo.ts";
+export { reenter } from "./app/recipes/reenter.ts";
+export type {
+  ReenterRecipeInput,
+  ReenterRecipeResult,
+} from "./app/recipes/reenter.ts";
+export { dispatch } from "./app/recipes/dispatch.ts";
+export type {
+  DispatchRecipeInput,
+  DispatchRecipeResult,
+} from "./app/recipes/dispatch.ts";
+export { plan } from "./app/recipes/plan.ts";
+export type { PlanRecipeInput, PlanRecipeResult } from "./app/recipes/plan.ts";
 export {
   createLocalMediation,
   createHostedMediation,
