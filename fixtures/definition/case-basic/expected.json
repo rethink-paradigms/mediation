@@ -1,0 +1,30 @@
+{
+  "id": "case-basic",
+  "name": "case-basic",
+  "model": "deepseek/deepseek-v4-flash",
+  "thinking": "low",
+  "agentMode": "dynamic",
+  "activeTools": ["read", "bash", "tool_finder"],
+  "extensions": ["context-memory", "foo"],
+  "skills": ["./skill/"],
+  "tools": {
+    "builtin": ["read", "bash", "write", "edit", "ls", "find", "grep"],
+    "custom": ["web_search"],
+    "agentMode": "dynamic",
+    "activeTools": ["read", "bash", "tool_finder"]
+  },
+  "noCoreSkills": false,
+  "memory": {
+    "enabled": true,
+    "namespace": "agent/case-basic",
+    "recallLimit": 3
+  },
+  "maxTokens": 4096,
+  "maxCostPerDayUsd": 1.5,
+  "maxConcurrency": 2,
+  "taskTimeoutMinutes": 15,
+  "meta": {
+    "tracing": false
+  },
+  "promptContains": "case-basic fixture agent"
+}

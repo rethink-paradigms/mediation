@@ -106,6 +106,15 @@ export {
   createPackResolver,
 } from "./adapters/packs/resolve-packs.ts";
 
+// --- S1b YamlDefinitionLoader (inert agent.yaml → AgentDefinition) ---
+export {
+  YamlDefinitionLoader,
+  createYamlDefinitionLoader,
+  mapYamlToDefinition,
+  loadPromptField,
+} from "./adapters/definition/yaml-definition-loader.ts";
+export type { YamlDefinitionLoaderOptions } from "./adapters/definition/yaml-definition-loader.ts";
+
 // --- S5a OpenWorkflow RuntimePort + Gamma leaf (orchestration; no Pi) ---
 export {
   OpenWorkflowRuntime,
