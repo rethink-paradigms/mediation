@@ -210,6 +210,16 @@ export type {
   RegisterPlanWorkflowDeps,
   RegisterPlanWorkflowResult,
 } from "./adapters/openworkflow/register-plan.ts";
+// --- ABS-C1 sqlite-only OW RuntimeHost composition ---
+export {
+  createSqliteRuntimeHost,
+} from "./adapters/openworkflow/host.ts";
+export type {
+  CreateSqliteRuntimeHostOptions,
+  SqliteRuntimeHost,
+  RuntimeHostWorker,
+  RuntimeHostOw,
+} from "./adapters/openworkflow/host.ts";
 export { MemoryJoinStore } from "./adapters/join/memory-store.ts";
 export { SqliteJoinStore } from "./adapters/join/sqlite-store.ts";
 export type { SqliteJoinStoreOptions } from "./adapters/join/sqlite-store.ts";
