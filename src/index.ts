@@ -124,6 +124,12 @@ export type {
   PublishCapabilityInput,
 } from "./ports/capability-store.ts";
 
+// --- ABS-B2 Mediation as SurfacePort (CLI uses SurfacePort only) ---
+export {
+  createMediationSurface,
+  MediationSurface,
+} from "./adapters/surface/mediation-surface.ts";
+
 // --- S2 experimental app surface (mock-first; real Pi deferred) ---
 export { DefaultPresenceFactory } from "./app/factory.ts";
 export type {

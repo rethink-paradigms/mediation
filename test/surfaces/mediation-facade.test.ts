@@ -1,5 +1,6 @@
 /**
  * S7: Mediation façade + CLI smoke (mock mind).
+ * ABS-B2: CLI via SurfacePort (createMediationSurface).
  */
 
 import assert from "node:assert/strict";
@@ -16,6 +17,7 @@ import {
   agentDefForPacks,
   createPackResolver,
 } from "../../src/adapters/packs/resolve-packs.ts";
+import { createMediationSurface } from "../../src/adapters/surface/mediation-surface.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { Mediation } from "../../src/app/mediation.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
@@ -100,7 +102,7 @@ describe("Mediation façade (S7)", () => {
   });
 });
 
-describe("CLI parse / help / smoke (S7)", () => {
+describe("CLI parse / help / smoke (S7 / ABS-B2)", () => {
   it("parseArgs extracts engage flags", () => {
     const p = parseArgs([
       "engage",
@@ -162,5 +164,73 @@ prompt: |
   it("runCli missing args exits 2", async () => {
     const code = await runCli(["engage"]);
     assert.equal(code, 2);
+  });
+});
+
+describe("createMediationSurface (ABS-B2)", () => {
+  it("wraps Mediation.engageLocal as SurfacePort", async () => {
+    const factory = new DefaultPresenceFactory({
+      engine: new MockEnginePort({
+        sessionRefFactory: () => asSessionRef("surface-sess"),
+      }),
+      packResolver: createPackResolver({
+        homeDir: path.join(PACK_ROOT, "_no_home"),
+      }),
+      toPackSnapshot,
+      projectRoot: PACK_ROOT,
+    });
+    const loader = {
+      load: async (ref: { name: string; rootDir: string }) =>
+        agentDefForPacks(ref.rootDir, ["foo", "bar"], ref.name),
+    };
+    const { join } = createLocalMediation({ mockEngine: true });
+    const mediation = new Mediation({ loader, factory, join });
+    const surface = createMediationSurface(mediation);
+
+    const result = await surface.engageLocal({
+      agent: { name: "surface-agent", rootDir: PACK_ROOT },
+      task: "via surface port",
+      channel: "cli",
+      clientRequestId: "abs-b2-1",
+    });
+
+    assert.equal(result.outcome.kind, "settled");
+    assert.equal(result.sessionRef, "surface-sess");
+    assert.equal(result.definitionId, "surface-agent");
+    assert.equal(typeof result.packSnapshotHash, "string");
+  });
+
+  it("runCli uses injected SurfacePort without compose", async () => {
+    let engaged = false;
+    const surface = {
+      engageLocal: async () => {
+        engaged = true;
+        return {
+          outcome: {
+            kind: "settled" as const,
+            sessionRef: asSessionRef("injected"),
+            result: {},
+          },
+          sessionRef: asSessionRef("injected"),
+          packSnapshotHash: "hash",
+          definitionId: "injected-agent",
+        };
+      },
+    };
+
+    const code = await runCli(
+      [
+        "engage",
+        "--agent",
+        "/tmp/any-agent",
+        "--task",
+        "via injection",
+        "--name",
+        "injected-agent",
+      ],
+      { surface },
+    );
+    assert.equal(code, 0);
+    assert.equal(engaged, true);
   });
 });
