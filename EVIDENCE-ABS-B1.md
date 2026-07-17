@@ -70,9 +70,11 @@ npm run check
 
 ## 5. Git
 
-```bash
-git log --oneline -3
-# (filled after commit)
+```text
+1a6e3f3 ABS-B1: SurfacePort + SurfaceRequest DTOs (D5 connectors).
+ed531c5 Merge branch 'slice/S11-kill-spawn'.
+675ef17 Merge branch 'slice/S10-plan-leaf'.
 ```
 
+**Tip:** `1a6e3f3bcd43a9c9528322c4ac6a0fcbd41787bb`  
 **Branch only:** `slice/ABS-B1-surface-port` — no checkout/switch, no merge main.
