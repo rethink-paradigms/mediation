@@ -156,14 +156,17 @@ Node note: `node --test test/` does not recurse under Node 26; scripts use `test
 ## 7. Git (after S5a commit)
 
 ```
-git log --oneline
-# tip: S5a OpenWorkflow RuntimePort + engagement leaf (see commit message)
-
-git status
-# working tree clean (ignore untracked WORKTREE.md if present — local only)
+e8c41a6 S5a: OpenWorkflow RuntimePort, engagement leaf, and MemoryJoinStore.
+5f5dad6 S5a wip: preserve concurrent work before worktree isolation.
+5c034af S0g: stabilize evidence packet git log wording.
 ```
 
-Record live SHAs with `git log --oneline` and re-run `npm run check` when accepting the slice.
+```
+On branch slice/S5a-ow-runtime-port
+# clean of product changes; untracked WORKTREE.md is local worktree guidance only
+```
+
+`npm run check` green at tip `e8c41a6` (29 tests, gauges OK).
 
 ---
 
