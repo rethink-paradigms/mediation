@@ -44,8 +44,10 @@ export function measureSecondDoor(): SecondDoorGauge {
     const text = fs.readFileSync(file, "utf8");
     const lines = text.split(/\r?\n/);
     lines.forEach((line, i) => {
+      // Comments may document the door; only code / imports count as second doors.
+      const code = line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
       DOOR_RE.lastIndex = 0;
-      if (DOOR_RE.test(line)) {
+      if (DOOR_RE.test(code)) {
         details.push({
           file: path.relative(PKG_ROOT, file),
           line: i + 1,
