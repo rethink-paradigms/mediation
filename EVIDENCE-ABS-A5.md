@@ -94,6 +94,16 @@ gauges: OK
 
 ## 4. Git
 
-(filled after commit)
+**Slice commit:** `946b93c` — ABS-A5 pure config-layer merge + tests + exports.
 
-No merge from main. Branch only. Worktree may retain untracked `WORKTREE.md` / `node_modules` (not committed).
+```text
+946b93c ABS-A5: pure root/family/agent CapabilitySpec merge (config layers).
+```
+
+Full SHA: `946b93c325b101ee5316412491ebfab4e204fad8`
+
+`npm run check` → typecheck + **119** tests pass + gauges OK  
+(`layer_import_violations=0` · `second_door_count=0` · `spawn_public_export_count=0` · `public_export_surface=133`)
+
+No `git checkout` / switch. No merge of `main`. Commit only on `slice/ABS-A5-config-layers`.  
+Worktree may retain untracked `WORKTREE.md` / `node_modules` (not committed).
