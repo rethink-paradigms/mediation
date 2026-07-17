@@ -251,3 +251,6 @@ export type {
 export { MemoryJoinStore } from "./adapters/join/memory-store.ts";
 export { SqliteJoinStore } from "./adapters/join/sqlite-store.ts";
 export type { SqliteJoinStoreOptions } from "./adapters/join/sqlite-store.ts";
+
+// --- ABS-A4 MemoryCapabilityStore (tests/fixtures; no FS) ---
+export { MemoryCapabilityStore } from "./adapters/capability/memory-store.ts";
