@@ -1,9 +1,10 @@
 /**
- * Gauge runner — hard gates for mediation package (S0 + S1 + S0g).
+ * Gauge runner — hard gates for mediation package (S0 + S1 + S0g + S11).
  *
  * Architectural gauges fail the process when violated:
  *   layer_import_violations !== 0 → exit 1
  *   second_door_count !== 0 → exit 1
+ *   spawn_public_export_count !== 0 → exit 1
  * Measurement errors also fail the process (agents get hard feedback).
  */
 
@@ -11,6 +12,7 @@ import { measureExportSurface } from "./export-surface.ts";
 import { measureLayerImports } from "./layer-imports.ts";
 import { runPackPlanGauges } from "./pack-plan.ts";
 import { measureSecondDoor } from "./second-door.ts";
+import { measureSpawnPublicExportCount } from "./spawn-death.ts";
 
 function main(): void {
   console.log("=== @company/mediation gauges ===");
@@ -64,6 +66,27 @@ function main(): void {
   } catch (e) {
     console.error(
       `public_export_surface=error ${e instanceof Error ? e.message : e}`,
+    );
+    failed = true;
+  }
+
+  // --- S11 / D3: spawn must not be a public monocoque export ---
+  try {
+    const spawn = measureSpawnPublicExportCount();
+    console.log(`spawn_public_export_count=${spawn.value}`);
+    for (const d of spawn.details) {
+      const loc = d.line !== undefined ? `:${d.line}` : "";
+      console.log(`  ${d.kind}${loc}: ${d.match}`);
+    }
+    if (spawn.value !== 0) {
+      console.error(
+        `FAIL: spawn_public_export_count=${spawn.value} (must be 0)`,
+      );
+      failed = true;
+    }
+  } catch (e) {
+    console.error(
+      `spawn_public_export_count=error ${e instanceof Error ? e.message : e}`,
     );
     failed = true;
   }
