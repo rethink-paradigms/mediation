@@ -267,6 +267,45 @@ export class Mediation {
     return this.runtime.getStatus(runId);
   }
 
+  /** Cancel durable OW run (RuntimePort). */
+  async cancel(runId: RunId): Promise<void> {
+    if (!this.runtime) {
+      throw new Error("Mediation.cancel: no RuntimePort configured");
+    }
+    return this.runtime.cancel(runId);
+  }
+
+  /**
+   * Send named signal to a durable run.
+   * Model P wake uses name `"wake"` (see ENGAGEMENT_WAKE_KIND / signals.ts).
+   */
+  async sendSignal(
+    runId: RunId,
+    name: string,
+    data?: unknown,
+  ): Promise<void> {
+    if (!this.runtime) {
+      throw new Error("Mediation.sendSignal: no RuntimePort configured");
+    }
+    return this.runtime.sendSignal(runId, name, data);
+  }
+
+  /**
+   * Product wake after Model P park — same runId, continue leaf on worker.
+   * Data: `{ payloadText, mode?, parkIntent?, parkReason? }` (WakeSignalData shape).
+   */
+  async wake(
+    runId: RunId,
+    data: {
+      readonly payloadText: string;
+      readonly mode?: "prompt" | "continue";
+      readonly parkIntent?: boolean;
+      readonly parkReason?: string;
+    },
+  ): Promise<void> {
+    return this.sendSignal(runId, "wake", data);
+  }
+
   async getJoinByRunId(runId: RunId): Promise<EngagementRecord | null> {
     if (!this.join) {
       throw new Error("Mediation.getJoinByRunId: no JoinStore configured");

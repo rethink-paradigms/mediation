@@ -17,3 +17,5 @@ export type {
 } from "./dispatch.ts";
 export { plan } from "./plan.ts";
 export type { PlanRecipeInput, PlanRecipeResult } from "./plan.ts";
+export { wake } from "./wake.ts";
+export type { WakeRecipeInput, WakeRecipeResult } from "./wake.ts";

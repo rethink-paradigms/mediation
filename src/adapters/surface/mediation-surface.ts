@@ -1,5 +1,5 @@
 /**
- * Mediation as SurfacePort (ABS-B2).
+ * Mediation as SurfacePort (ABS-B2 / LIFE-P3).
  * Law D5: surfaces are connectors — CLI/MCP talk to SurfacePort only;
  * this adapter maps SurfaceRequest DTOs onto the Mediation façade.
  */
@@ -17,8 +17,7 @@ import type { DispatchHandle, RuntimeStatus } from "../../ports/runtime.ts";
 
 /**
  * Wrap a Mediation instance as SurfacePort.
- * Optional methods (dispatch / reenter / getStatus) are always present;
- * Mediation still throws when runtime/join are unwired.
+ * Control methods always present; Mediation throws when runtime/join unwired.
  */
 export function createMediationSurface(mediation: Mediation): SurfacePort {
   return {
@@ -40,6 +39,8 @@ export function createMediationSurface(mediation: Mediation): SurfacePort {
         task: req.task,
         resume: req.resume,
         clientRequestId: req.clientRequestId,
+        parkIntent: req.parkIntent,
+        parkReason: req.parkReason,
       });
     },
 
@@ -58,6 +59,33 @@ export function createMediationSurface(mediation: Mediation): SurfacePort {
 
     getStatus(runId: RunId): Promise<RuntimeStatus> {
       return mediation.getStatus(runId);
+    },
+
+    wait(
+      runId: RunId,
+      opts?: { timeoutMs?: number },
+    ): Promise<RuntimeStatus> {
+      return mediation.wait(runId, opts);
+    },
+
+    cancel(runId: RunId): Promise<void> {
+      return mediation.cancel(runId);
+    },
+
+    sendSignal(runId: RunId, name: string, data?: unknown): Promise<void> {
+      return mediation.sendSignal(runId, name, data);
+    },
+
+    wake(
+      runId: RunId,
+      data: {
+        readonly payloadText: string;
+        readonly mode?: "prompt" | "continue";
+        readonly parkIntent?: boolean;
+        readonly parkReason?: string;
+      },
+    ): Promise<void> {
+      return mediation.wake(runId, data);
     },
   };
 }

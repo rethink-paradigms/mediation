@@ -189,6 +189,8 @@ export type {
 } from "./app/recipes/dispatch.ts";
 export { plan } from "./app/recipes/plan.ts";
 export type { PlanRecipeInput, PlanRecipeResult } from "./app/recipes/plan.ts";
+export { wake } from "./app/recipes/wake.ts";
+export type { WakeRecipeInput, WakeRecipeResult } from "./app/recipes/wake.ts";
 export {
   createLocalMediation,
   createHostedMediation,
