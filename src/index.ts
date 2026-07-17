@@ -155,10 +155,13 @@ export type {
 } from "./app/mediation.ts";
 export {
   createLocalMediation,
+  createHostedMediation,
 } from "./adapters/compose.ts";
 export type {
   CreateLocalMediationOptions,
   LocalMediationComposition,
+  CreateHostedMediationOptions,
+  HostedMediationComposition,
 } from "./adapters/compose.ts";
 export {
   MockEnginePort,
