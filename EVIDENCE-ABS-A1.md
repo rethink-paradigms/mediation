@@ -76,9 +76,9 @@ gauges: OK
 ## 4. Git
 
 ```text
-3b7a41a ABS-A1: land domain capability types for medium independence (D5).
+e0f549d ABS-A1: land domain capability types for medium independence (D5).
 ```
 
-Full SHA: `3b7a41a83d393c6a75357631db36e22153528137`
+Full SHA: `e0f549dd063902465bbecfc8041a4780cdf43156`
 
 No `git checkout` / switch. No merge of `main`. Commit only on `slice/ABS-A1-capability-domain`.
