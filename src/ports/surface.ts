@@ -29,7 +29,7 @@ export type SurfaceRequest = {
   readonly clientRequestId?: string;
   /** Surface channel id (cli, mcp, chat, …). */
   readonly channel?: string;
-  /** S9: force Parked outcome after idle (recipe / test). */
+  /** S9 / Model P: force Parked after idle (stand-in). */
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
 };
@@ -83,4 +83,26 @@ export interface SurfacePort {
   reenter?(req: SurfaceReenterRequest): Promise<SurfaceReenterResult>;
   /** Optional: poll durable run status. */
   getStatus?(runId: RunId): Promise<RuntimeStatus>;
+  /** Optional: wait for terminal durable status. */
+  wait?(
+    runId: RunId,
+    opts?: { timeoutMs?: number },
+  ): Promise<RuntimeStatus>;
+  /** Optional: cancel durable run. */
+  cancel?(runId: RunId): Promise<void>;
+  /** Optional: send named signal (Model P wake uses name "wake"). */
+  sendSignal?(runId: RunId, name: string, data?: unknown): Promise<void>;
+  /**
+   * Optional: product wake after park.
+   * data shape matches WakeSignalData / Mediation.wake.
+   */
+  wake?(
+    runId: RunId,
+    data: {
+      readonly payloadText: string;
+      readonly mode?: "prompt" | "continue";
+      readonly parkIntent?: boolean;
+      readonly parkReason?: string;
+    },
+  ): Promise<void>;
 }
