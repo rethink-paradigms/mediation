@@ -3,19 +3,20 @@
 **Package:** `@company/mediation`  
 **Code home:** `company/platform/mediation/` (package-local git only)  
 **Date:** 2026-07-18  
-**Commits:** `3503096` (toolchain baseline), `922550c` (evidence + log refresh)
+**Primary baseline:** `3503096` (toolchain + S0–S2 tree). Further commits on `main` are evidence/docs only. Live SHAs: `git log --oneline`.
 
 ---
 
 ## A. Git
 
-### `git log --oneline`
+### `git log --oneline` (representative S0g history)
 
 ```
-922550c S0g: refresh evidence git log SHAs after evidence commit.
-994e22e S0g: evidence packet for git baseline and fail-fast check surface.
+<tip> S0g: evidence packet / log refresh commits
 3503096 S0g: git baseline and fail-fast toolchain over accepted S0–S2.
 ```
+
+Exact tip SHA is whatever `git rev-parse --short HEAD` reports after the last S0g commit on a clean tree.
 
 ### `git status` (after S0g commits)
 
