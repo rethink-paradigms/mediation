@@ -79,8 +79,10 @@ npm run check
 ## 5. Git
 
 ```text
-(pending commit on branch)
+0dbeaef ABS-B3: record evidence tip SHA and check surface on recipes branch.
+e03ca58 ABS-B3: recipes package (solo, reenter, dispatch, plan) as thin Mediation wrappers.
+09684e7 Merge branch 'slice/ABS-A7-factory-capability'.
 ```
 
-**Tip:** (filled after commit)  
+**Tip:** `e03ca5876eb43bc0e070de74cdfb1211c7ba03bf`  
 **Branch only:** `slice/ABS-B3-recipes` — no checkout/switch, no merge main.
