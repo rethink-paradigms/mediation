@@ -105,6 +105,16 @@ export type {
   SurfaceReenterResult,
 } from "./ports/surface.ts";
 
+// --- ABS-A2 CapabilityStore port (D5 L2; adapters A3/A4/R1) ---
+export type {
+  CapabilityStore,
+  CapabilityPublisher,
+  CapabilityArtifact,
+  CapabilityEntry,
+  CapabilityGetOptions,
+  PublishCapabilityInput,
+} from "./ports/capability-store.ts";
+
 // --- S2 experimental app surface (mock-first; real Pi deferred) ---
 export { DefaultPresenceFactory } from "./app/factory.ts";
 export type {
