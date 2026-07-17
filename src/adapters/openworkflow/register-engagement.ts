@@ -1,17 +1,17 @@
 /**
- * Register the Gamma engagement workflow on an OpenWorkflow client (S5c).
+ * Register the engagement workflow on an OpenWorkflow client (S5c / LIFE scaffold).
  *
- * Binds implementWorkflow(spec, fn) so a Worker can execute runs enqueued via
- * RuntimePort.dispatch / ow.runWorkflow. Leaf deps (factory, join, definition
- * resolve) are closed over at composition time — workflow body never invents
- * pack loading or opens Pi sessions directly.
+ * Thin binding only:
+ *   implementWorkflow → runEngagementArc → runEngagementLeaf (Pi monocoque)
+ *
+ * Park/wake continuum lives in workflows/engagement-arc.ts (LIFE-P1/P2).
+ * This file must stay a registration shell — no leaf or signal policy here.
  *
  * ```ts
  * const ow = new OpenWorkflow({ backend });
  * registerEngagementWorkflow(ow, { factory, join, resolveDefinition });
  * const worker = ow.newWorker({ concurrency: 1 });
  * await worker.start();
- * // runtime.dispatch(...) → worker runs leaf → completed
  * ```
  */
 
@@ -23,27 +23,22 @@ import {
   defaultEngagementWorkflowSpec,
   type WorkflowSpecRef,
 } from "./runtime.ts";
+import type { EngagementLeafDeps } from "./workflows/engagement.ts";
 import {
-  runEngagementLeaf,
-  type EngagementLeafDeps,
-} from "./workflows/engagement.ts";
+  runEngagementArc,
+  type EngagementArcStep,
+} from "./workflows/engagement-arc.ts";
 
 /**
  * Minimal OpenWorkflow client face used for registration + worker.
- * Structural so tests can pass real OpenWorkflow without coupling to package
- * internals beyond implementWorkflow / newWorker.
+ * Structural — no vendor type import in this module’s public surface.
  */
 export type EngagementOwClient = {
   implementWorkflow(
     spec: WorkflowSpecRef<EngagementWorkflowInput, EngagementWorkflowOutput>,
     fn: (params: {
       readonly input: EngagementWorkflowInput;
-      readonly step: {
-        run: <Output>(
-          config: { readonly name: string },
-          stepFn: () => Promise<Output> | Output,
-        ) => Promise<Output>;
-      };
+      readonly step: EngagementArcStep;
       readonly run: { readonly id: string };
     }) => Promise<EngagementWorkflowOutput> | EngagementWorkflowOutput,
   ): void;
@@ -68,8 +63,7 @@ export type RegisterEngagementWorkflowDeps = {
     EngagementWorkflowOutput
   >;
   /**
-   * Durable step name inside the workflow (default: engagement-leaf).
-   * Side-effecting materialize/engage runs once per successful attempt.
+   * Durable step name for the first leaf inside the arc (default: engagement-leaf).
    */
   readonly stepName?: string;
 };
@@ -82,8 +76,7 @@ export type RegisterEngagementWorkflowResult = {
 };
 
 /**
- * implementWorkflow for the engagement leaf on `ow`.
- * Call once per client before newWorker / dispatch.
+ * implementWorkflow → engagement arc. Call once per client before newWorker / dispatch.
  */
 export function registerEngagementWorkflow(
   ow: EngagementOwClient,
@@ -91,17 +84,19 @@ export function registerEngagementWorkflow(
 ): RegisterEngagementWorkflowResult {
   const engagementSpec =
     deps.engagementSpec ?? defaultEngagementWorkflowSpec();
-  const stepName = deps.stepName ?? "engagement-leaf";
+  const leafStepName = deps.stepName ?? "engagement-leaf";
 
   ow.implementWorkflow(engagementSpec, async ({ input, step, run }) => {
-    return step.run({ name: stepName }, async () => {
-      return runEngagementLeaf(input, {
+    return runEngagementArc({
+      input,
+      step,
+      runId: run.id,
+      leafStepName,
+      deps: {
         factory: deps.factory,
         join: deps.join,
         resolveDefinition: deps.resolveDefinition,
-        // Correlate product join with OW workflow run id
-        runId: run.id,
-      });
+      },
     });
   });
 

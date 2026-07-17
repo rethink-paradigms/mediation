@@ -4,9 +4,12 @@
  */
 
 /**
- * Workflow input for a single-agent engagement leaf.
+ * Workflow input for a single-agent engagement leaf / arc slice.
  * `agentName` + `agentRoot` identify the agent; definition loading is injected
  * outside this type (factory path does not invent pack loading).
+ *
+ * Optional park/mode fields are serializable control for tests and recipes;
+ * auto wait-tool park detection remains out of band (D1 stand-in).
  */
 export type EngagementWorkflowInput = {
   readonly agentName: string;
@@ -21,6 +24,14 @@ export type EngagementWorkflowInput = {
    * Kept serializable so workers do not need local yaml when tests inject defs.
    */
   readonly definitionId?: string;
+  /**
+   * When true, leaf engage returns Parked after idle (D1 / S9 stand-in).
+   * Used by LIFE park continuum tests and explicit recipes.
+   */
+  readonly parkIntent?: boolean;
+  readonly parkReason?: string;
+  /** Engage mode for this leaf slice (default engine/presence: prompt). */
+  readonly engageMode?: "prompt" | "continue";
 };
 
 /**

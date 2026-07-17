@@ -19,6 +19,7 @@ import type {
   RuntimePort,
   RuntimeStatus,
 } from "../../ports/runtime.ts";
+import { engagementSignalName } from "./signals.ts";
 import {
   ENGAGEMENT_WORKFLOW_NAME,
   PLAN_WORKFLOW_NAME,
@@ -147,12 +148,11 @@ function mapOwStatus(run: {
   }
 }
 
-function signalNameForRun(runId: RunId, name: string): string {
-  return `mediation:run:${runId}:${name}`;
-}
-
 /**
  * RuntimePort implementation backed by OpenWorkflow client + backend.
+ *
+ * Orchestration client only — no materialize / engage. Signal names come from
+ * `signals.ts` so the engagement arc can wait on the same addresses.
  */
 export class OpenWorkflowRuntime implements RuntimePort {
   private readonly ow: RuntimeOwClient;
@@ -197,10 +197,10 @@ export class OpenWorkflowRuntime implements RuntimePort {
   }
 
   async sendSignal(runId: RunId, name: string, data: unknown): Promise<void> {
-    // OW signals are named strings; we namespace by runId so park/wake can target a run.
     // Data must be JSON-serializable for the OW backend.
+    // Use engagementSignalName so LIFE-P1 waitForSignal matches this address.
     await this.ow.sendSignal({
-      signal: signalNameForRun(runId, name),
+      signal: engagementSignalName(runId, name),
       data: data as never,
     });
   }

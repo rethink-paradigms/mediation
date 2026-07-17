@@ -4,6 +4,9 @@
  * Input (serializable) → factory.materialize → join.put → engage → output.
  * No pack resolve inside the leaf (factory only). No engine session open here
  * (materialize is the single door via injected PresenceFactory).
+ *
+ * SoC: this module is one Pi life slice only. Durable park wait / wake loops
+ * belong in `engagement-arc.ts`, not here. Never import openworkflow.
  */
 
 import type { AgentDefinition } from "../../../domain/definition.ts";
@@ -102,7 +105,12 @@ export async function runEngagementLeaf(
       updatedAt: now(),
     });
 
-    const outcome = await presence.engage({ text: input.task });
+    const outcome = await presence.engage({
+      text: input.task,
+      mode: input.engageMode,
+      parkIntent: input.parkIntent,
+      parkReason: input.parkReason,
+    });
 
     if (outcome.kind === "settled") {
       await deps.join.updateStatus(runId, "settled");

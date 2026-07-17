@@ -247,6 +247,22 @@ export {
 } from "./adapters/openworkflow/workflows/engagement.ts";
 export type { EngagementLeafDeps } from "./adapters/openworkflow/workflows/engagement.ts";
 export {
+  runEngagementArc,
+} from "./adapters/openworkflow/workflows/engagement-arc.ts";
+export type {
+  EngagementArcStep,
+  EngagementArcDeps,
+  RunEngagementArcParams,
+} from "./adapters/openworkflow/workflows/engagement-arc.ts";
+export {
+  ENGAGEMENT_WAKE_KIND,
+  engagementSignalName,
+  engagementWakeSignal,
+  isWakeSignalData,
+  parseWakeSignalData,
+} from "./adapters/openworkflow/signals.ts";
+export type { WakeSignalData } from "./adapters/openworkflow/signals.ts";
+export {
   registerEngagementWorkflow,
 } from "./adapters/openworkflow/register-engagement.ts";
 export type {
