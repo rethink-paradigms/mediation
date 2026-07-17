@@ -60,9 +60,10 @@ npm run check
 ## 4. Git
 
 ```text
-# recorded at commit time — see git log -1 after commit
+ab0d856 S10: Plan leaf reuses Gamma engagement via sequential OW workflow.
 ```
 
+Full SHA: `ab0d856acc111072e36ff0dcdb5d9218d832321b`  
 Branch only: `slice/S10-plan-leaf`. **Not merged to main.**
 
 ---
