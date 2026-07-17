@@ -40,14 +40,28 @@
 
 ## 3. Live
 
-Gated; not required for merge:
+Gated; not required for merge / default check.
 
 ```bash
-MEDIATION_LIVE_PI=1 npm run test:live-pi
+MEDIATION_LIVE_PI=1 MEDIATION_LIVE_MODEL=deepseek/deepseek-v4-flash npm run test:live-pi
 # includes test/runtime/live-engagement-leaf-pi.test.ts
+# definition thinking: off
 ```
 
-Requires Pi auth (`~/.pi/agent/auth.json` or env). If skipped/blocked, re-run with credentials.
+### Transcript (2026-07-18, deepseek/deepseek-v4-flash, thinking:off)
+
+```
+[live-leaf-pi] INFO Model resolved { provider: 'deepseek', modelId: 'deepseek-v4-flash' }
+[live-leaf-pi] INFO AgentSession created { sessionRef: '019f71a3-eb9e-7888-b42d-cdd6592b7a1b' }
+[live-leaf-pi] output= {
+  "kind": "settled",
+  "sessionRef": "019f71a3-eb9e-7888-b42d-cdd6592b7a1b",
+  "packSnapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+}
+✔ runEngagementLeaf → Settled with real Pi factory (~1797ms)
+```
+
+**blocked_reason:** none.
 
 ---
 

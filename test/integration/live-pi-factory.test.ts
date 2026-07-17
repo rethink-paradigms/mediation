@@ -28,7 +28,7 @@ function liveDefinition(rootDir: string): AgentDefinition {
   const model =
     process.env.MEDIATION_LIVE_MODEL ??
     process.env.PI_MODEL ??
-    "anthropic/claude-haiku-4-5-20251001";
+    "deepseek/deepseek-v4-flash";
   return {
     id: "live-s2c",
     name: "live-s2c",

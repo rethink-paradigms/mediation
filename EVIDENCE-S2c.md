@@ -73,26 +73,28 @@ MEDIATION_LIVE_PI=1 node --experimental-strip-types --test \
 # or: npm run test:live-pi
 ```
 
-Optional model: `MEDIATION_LIVE_MODEL=provider/model-id` (default anthropic haiku probe).  
+Optional model: `MEDIATION_LIVE_MODEL=provider/model-id`  
+**Default live model:** `deepseek/deepseek-v4-flash` with `thinking: off`.  
 Requires host auth at `~/.pi/agent/auth.json`.
 
-### transcript (agent run, 2026-07-18)
+### transcript (2026-07-18, deepseek/deepseek-v4-flash, thinking:off)
 
 ```
-[live-pi-factory] INFO Model resolved { provider: 'anthropic', modelId: 'claude-haiku-4-5-20251001' }
+[live-pi-factory] INFO Model resolved { provider: 'deepseek', modelId: 'deepseek-v4-flash' }
 [live-pi-factory] INFO ResourceLoader ready { extensions: 0 }
-[live-pi-factory] INFO AgentSession created { sessionRef: '019f718a-b051-7142-8d34-78a9490a3d01' }
-[live-pi-factory] sessionRef= 019f718a-b051-7142-8d34-78a9490a3d01
-[live-pi-factory] outcome= { kind: 'settled', sessionRef: '019f718a-b051-7142-8d34-78a9490a3d01' } trail= status:engaging,msg:user,engine,engine,engine,msg:user,engine,msg:assistant,engine,engine,idle,status:idle
+[live-pi-factory] INFO AgentSession created { sessionRef: '019f71a3-eb9e-71cc-8432-9d7a728c7b88' }
+[live-pi-factory] sessionRef= 019f71a3-eb9e-71cc-8432-9d7a728c7b88
+[live-pi-factory] outcome= { kind: 'settled', sessionRef: '019f71a3-eb9e-71cc-8432-9d7a728c7b88' } trail= … idle,status:idle
 [live-pi-factory] disposed ok
-✔ createPiPresenceFactory materialize + engage → Settled (1176ms)
+✔ createPiPresenceFactory materialize + engage → Settled (~1805ms)
 
-[live-pi] INFO AgentSession created { sessionRef: '019f718a-b043-7d19-87a1-4609fa7f11db' }
-[live-pi] idle= { at: '2026-07-17T19:25:43.015Z', reason: 'agent_settled' } …
-✔ openSession + prompt + waitUntilIdle + dispose via real createAgentSession (1351ms)
+[live-pi] INFO Model resolved { provider: 'deepseek', modelId: 'deepseek-v4-flash' }
+[live-pi] sessionRef= 019f71a3-eba4-7733-a74e-e02d412f62b0
+[live-pi] idle= { reason: 'agent_settled' } …
+✔ openSession + prompt + waitUntilIdle + dispose (~1787ms)
 ```
 
-**blocked_reason:** none (live factory Settled succeeded in this environment).
+**blocked_reason:** none.
 
 Human re-run if auth missing: install Pi credentials, then the command above.
 

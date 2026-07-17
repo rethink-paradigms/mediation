@@ -55,11 +55,28 @@ Live: same with real Pi (`inMemorySession: true`), gated.
 ## 4. Live
 
 ```bash
-MEDIATION_LIVE_PI=1 npm run test:live-pi
+MEDIATION_LIVE_PI=1 MEDIATION_LIVE_MODEL=deepseek/deepseek-v4-flash npm run test:live-pi
 # includes test/runtime/live-ow-worker-pi.test.ts
+# definition thinking: off
 ```
 
-Requires Pi auth. Not required for merge.
+### transcript (2026-07-18, deepseek/deepseek-v4-flash, thinking:off)
+
+```
+[live-worker-pi] INFO Model resolved { provider: 'deepseek', modelId: 'deepseek-v4-flash' }
+[live-worker-pi] INFO AgentSession created { sessionRef: '019f71a3-ebb0-7815-a1d9-b487f70298dc' }
+[live-worker-pi] status= {
+  "state": "completed",
+  "result": {
+    "kind": "settled",
+    "sessionRef": "019f71a3-ebb0-7815-a1d9-b487f70298dc",
+    "packSnapshotHash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  }
+}
+✔ dispatch → worker → Settled with real Pi factory (~1813ms)
+```
+
+**blocked_reason:** none. Full live band (engine + factory + leaf + worker): **4/4 pass**.
 
 ---
 
