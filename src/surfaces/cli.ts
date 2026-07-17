@@ -1,5 +1,8 @@
 /**
- * Thin mediation CLI (S7) — surfaces call Mediation only.
+ * Thin mediation CLI (S7 / ABS-B2) — surface talks SurfacePort only.
+ *
+ * Composition (createLocalMediation + createMediationSurface) wires the
+ * adapter at the edge; engage path never touches factory / Presence directly.
  *
  * Usage:
  *   npm run mediation -- engage --agent <dir> --task "..."
@@ -13,7 +16,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createLocalMediation } from "../adapters/compose.ts";
+import { createMediationSurface } from "../adapters/surface/mediation-surface.ts";
 import { asSessionRef } from "../domain/presence.ts";
+import type { SurfacePort } from "../ports/surface.ts";
 
 export type CliArgs = {
   readonly command: "engage" | "help";
@@ -23,6 +28,14 @@ export type CliArgs = {
   readonly name?: string;
   readonly projectRoot?: string;
   readonly json?: boolean;
+};
+
+export type RunCliOptions = {
+  /**
+   * Injected SurfacePort (tests). When omitted, CLI composes local
+   * Mediation → createMediationSurface at the edge.
+   */
+  readonly surface?: SurfacePort;
 };
 
 export function parseArgs(argv: readonly string[]): CliArgs {
@@ -83,7 +96,24 @@ Env:
 `;
 }
 
-export async function runCli(argv: readonly string[]): Promise<number> {
+function composeDefaultSurface(opts: {
+  readonly projectRoot: string;
+  readonly usePi: boolean;
+}): SurfacePort {
+  const { mediation } = createLocalMediation({
+    mockEngine: !opts.usePi,
+    projectRoot: opts.projectRoot,
+    packResolverOptions: {
+      homeDir: path.join(opts.projectRoot, "_no_home"),
+    },
+  });
+  return createMediationSurface(mediation);
+}
+
+export async function runCli(
+  argv: readonly string[],
+  options: RunCliOptions = {},
+): Promise<number> {
   const parsed = parseArgs(argv);
 
   if (parsed.command === "help" || !parsed.agentDir || !parsed.task) {
@@ -96,19 +126,16 @@ export async function runCli(argv: readonly string[]): Promise<number> {
   const agentName = parsed.name ?? path.basename(agentDir);
   const usePi = process.env.MEDIATION_CLI_PI === "1";
 
-  const { mediation } = createLocalMediation({
-    mockEngine: !usePi,
-    projectRoot,
-    packResolverOptions: {
-      homeDir: path.join(projectRoot, "_no_home"),
-    },
-  });
+  const surface =
+    options.surface ??
+    composeDefaultSurface({ projectRoot, usePi });
 
-  const result = await mediation.engageLocal({
+  const result = await surface.engageLocal({
     agent: { name: agentName, rootDir: agentDir },
     task: parsed.task,
     resume: parsed.resume ? asSessionRef(parsed.resume) : undefined,
     cwd: agentDir,
+    channel: "cli",
   });
 
   if (parsed.json) {
