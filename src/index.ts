@@ -193,6 +193,8 @@ export {
   createLocalMediation,
   createHostedMediation,
   resolveCapabilityResolver,
+  resolveHostedJoin,
+  defaultHostedJoinPath,
 } from "./adapters/compose.ts";
 export type {
   CreateLocalMediationOptions,
