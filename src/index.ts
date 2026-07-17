@@ -41,6 +41,15 @@ export type {
 } from "./domain/capability.ts";
 export { asCapabilityId } from "./domain/capability.ts";
 
+// --- ABS-A5 config layers (root · family · agent) pure merge ---
+export type {
+  ConfigLayerKind,
+  CapabilitySpec,
+  ConfigLayer,
+  EffectiveCapabilitySpec,
+} from "./domain/config-layer.ts";
+export { mergeCapabilitySpecs } from "./domain/config-layer.ts";
+
 export type {
   SessionRef,
   PresenceStatus,
