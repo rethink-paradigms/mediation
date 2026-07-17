@@ -89,7 +89,11 @@ gauges: OK
 ## 4. Git
 
 ```text
-(tip recorded after commit)
+ead96b4 ABS-R1: land RegistryCapabilityStore stub with publish→get round-trip (D5 L5).
+0e113f4 Merge branch 'slice/ABS-C2-host-mediation'.
+bdcb820 Merge branch 'slice/ABS-B2-cli-surface'.
 ```
+
+Full SHA (implementation tip): `ead96b424117f29d9db7ce8d0cf7d4ed6b04e0c5`
 
 No `git checkout` / switch to main. No merge of `main`. Commit only on `slice/ABS-R1-registry-stub`.
