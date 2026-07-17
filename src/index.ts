@@ -2,6 +2,7 @@
  * @company/mediation — public surface.
  * S0–S2: types + ports + experimental app factory/presence (mock-first).
  * S2b: real Pi under src/adapters/pi/ (composition import; not re-exported here).
+ * S2c: createPiPresenceFactory in src/adapters/wiring.ts (composition import; not here).
  * S5a: OpenWorkflow RuntimePort + engagement leaf + MemoryJoinStore.
  * One door: real engine session open only under adapters/pi.
  *
