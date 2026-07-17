@@ -3,6 +3,17 @@
  * All real Pi session construction for EnginePort goes through here.
  *
  * Aligns with @earendil-works/pi-coding-agent ~0.80 (ModelRuntime, not AuthStorage factory).
+ *
+ * ABS-A8 / D5 L4 — absolute paths only at this Pi/FS adapter boundary:
+ * - Extension load paths come **only** from `OpenSessionRequest.packPlan.packs[].path`
+ *   (`PackRef.path`). This adapter does not re-resolve capability ids, scan definition
+ *   extensions, or invent filesystem paths.
+ * - Upstream (`DefaultPresenceFactory`) produces that plan either via PackResolver or
+ *   via A7 `packLoadPlanFromCapabilityArtifacts` (capability `entry.modulePath` /
+ *   `locator.path` → `PackRef.path`). Capability-style module paths are already
+ *   adapted into PackRef before openSession.
+ * - Domain identity remains CapabilityId / pack id; path strings are adapter material
+ *   for Pi `additionalExtensionPaths` only.
  */
 
 import fs from "node:fs";
@@ -17,6 +28,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import type { AgentDefinition, ModelSpec } from "../../domain/definition.ts";
+import type { PackLoadPlan } from "../../domain/packs.ts";
 import type { OpenSessionRequest } from "../../ports/engine.ts";
 import type { OpenedPiSession, PiEngineAdapterOptions } from "./types.ts";
 
@@ -55,13 +67,22 @@ function resolveSystemPrompt(definition: AgentDefinition): string | undefined {
   return p;
 }
 
-function extensionPathsFromPlan(req: OpenSessionRequest): string[] {
-  return req.packPlan.packs.map((pack) => pack.path);
+/**
+ * Map packPlan → Pi additionalExtensionPaths (ABS-A8).
+ * Reads only `PackRef.path` — capability module-path adaptation is factory/A7.
+ * Skips empty paths; order matches plan.packs (load order preserved).
+ */
+export function extensionPathsFromPackPlan(plan: PackLoadPlan): string[] {
+  return plan.packs
+    .map((pack) => pack.path)
+    .filter((p) => typeof p === "string" && p.length > 0);
 }
 
 /**
  * Open a real Pi AgentSession from OpenSessionRequest.
  * Settings default to inMemory (mediation-owned; D2 — do not load host settings).
+ *
+ * Extension bind: `packPlan` only (see file header / extensionPathsFromPackPlan).
  */
 export async function openPiSession(
   req: OpenSessionRequest,
@@ -89,7 +110,8 @@ export async function openPiSession(
   }
 
   const systemPrompt = resolveSystemPrompt(req.definition);
-  const extensionPaths = extensionPathsFromPlan(req);
+  // D5 L4: FS paths only here — already on PackRef from factory/capability boundary.
+  const extensionPaths = extensionPathsFromPackPlan(req.packPlan);
 
   const resourceLoader = new DefaultResourceLoader({
     cwd,
