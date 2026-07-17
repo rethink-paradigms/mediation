@@ -95,6 +95,16 @@ export type {
 } from "./ports/pack-resolver.ts";
 export { packRequestFromDefinition } from "./ports/pack-resolver.ts";
 
+// --- ABS-B1 SurfacePort (connectors only; CLI adapter is B2) ---
+export type {
+  SurfacePort,
+  SurfaceRequest,
+  SurfaceEngageMode,
+  SurfaceEngageResult,
+  SurfaceReenterRequest,
+  SurfaceReenterResult,
+} from "./ports/surface.ts";
+
 // --- S2 experimental app surface (mock-first; real Pi deferred) ---
 export { DefaultPresenceFactory } from "./app/factory.ts";
 export type {
