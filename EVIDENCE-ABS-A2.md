@@ -94,7 +94,11 @@ gauges: OK
 ## 4. Git
 
 ```text
-(pending commit — filled after commit)
+41fee9a ABS-A2: land CapabilityStore port and optional Publisher stub (D5 L2).
+22bb56d Merge branch 'slice/ABS-C1-runtime-host'.
+79f4a20 Merge branch 'slice/ABS-B1-surface-port'.
 ```
+
+Full SHA: `41fee9a70d9efacfbd71223315806d990028a7e1`
 
 No `git checkout` / switch. No merge of `main`. Commit only on `slice/ABS-A2-capability-store-port`.
