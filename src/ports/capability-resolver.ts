@@ -15,6 +15,7 @@ import type {
   ConfigLayer,
   EffectiveCapabilitySpec,
 } from "../domain/config-layer.ts";
+import type { CapabilityArtifact } from "./capability-store.ts";
 
 /**
  * Resolve input: either ordered config layers (merged with mergeCapabilitySpecs)
@@ -30,11 +31,14 @@ export type CapabilityResolveInput = {
  * Merge + store lookup result.
  * - `effective` — merged policy + ordered extension ids
  * - `plan` — CapabilityRefs for found extensions + fail-closed diagnostics
+ * - `artifacts` — full store hits (same order as `plan.capabilities`); carries
+ *   module-path entries for PackLoadPlan adaptation (ABS-A7)
  * - `diagnostics` — same list as `plan.diagnostics` (convenience for callers)
  */
 export type CapabilityResolveResult = {
   readonly effective: EffectiveCapabilitySpec;
   readonly plan: CapabilityPlan;
+  readonly artifacts: readonly CapabilityArtifact[];
   readonly diagnostics: readonly CapabilityDiagnostic[];
 };
 

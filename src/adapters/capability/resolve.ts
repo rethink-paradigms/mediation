@@ -20,7 +20,10 @@ import type {
   CapabilityResolveResult,
   CapabilityResolver,
 } from "../../ports/capability-resolver.ts";
-import type { CapabilityStore } from "../../ports/capability-store.ts";
+import type {
+  CapabilityArtifact,
+  CapabilityStore,
+} from "../../ports/capability-store.ts";
 
 export type DefaultCapabilityResolverOptions = {
   readonly store: CapabilityStore;
@@ -54,6 +57,7 @@ export class DefaultCapabilityResolver implements CapabilityResolver {
   ): Promise<CapabilityResolveResult> {
     const effective = resolveEffective(input);
     const capabilities: CapabilityRef[] = [];
+    const artifacts: CapabilityArtifact[] = [];
     const diagnostics: CapabilityDiagnostic[] = [];
 
     for (const id of effective.extensions) {
@@ -68,6 +72,7 @@ export class DefaultCapabilityResolver implements CapabilityResolver {
         continue;
       }
       capabilities.push(artifact.ref);
+      artifacts.push(artifact);
     }
 
     const ok = !diagnostics.some((d) => d.level === "error");
@@ -80,6 +85,7 @@ export class DefaultCapabilityResolver implements CapabilityResolver {
     return {
       effective,
       plan,
+      artifacts,
       diagnostics,
     };
   }
