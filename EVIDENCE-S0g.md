@@ -3,7 +3,7 @@
 **Package:** `@company/mediation`  
 **Code home:** `company/platform/mediation/` (package-local git only)  
 **Date:** 2026-07-18  
-**Commits:** `3503096` (toolchain baseline), `264c89c` (this evidence packet)
+**Commits:** `3503096` (toolchain baseline), `922550c` (evidence + log refresh)
 
 ---
 
@@ -12,7 +12,8 @@
 ### `git log --oneline`
 
 ```
-264c89c S0g: evidence packet for git baseline and fail-fast check surface.
+922550c S0g: refresh evidence git log SHAs after evidence commit.
+994e22e S0g: evidence packet for git baseline and fail-fast check surface.
 3503096 S0g: git baseline and fail-fast toolchain over accepted S0–S2.
 ```
 
