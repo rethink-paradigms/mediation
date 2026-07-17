@@ -150,7 +150,13 @@ export {
 } from "./adapters/surface/mediation-surface.ts";
 
 // --- S2 experimental app surface (mock-first; real Pi deferred) ---
-export { DefaultPresenceFactory } from "./app/factory.ts";
+// ABS-A7: optional CapabilityResolver on factory; pack plan adapted from artifacts
+export {
+  DefaultPresenceFactory,
+  capabilitySpecFromDefinition,
+  modulePathFromArtifact,
+  packLoadPlanFromCapabilityArtifacts,
+} from "./app/factory.ts";
 export type {
   DefaultPresenceFactoryDeps,
   PackSnapshotFn,
@@ -175,6 +181,7 @@ export type {
 export {
   createLocalMediation,
   createHostedMediation,
+  resolveOptionalCapabilityResolver,
 } from "./adapters/compose.ts";
 export type {
   CreateLocalMediationOptions,

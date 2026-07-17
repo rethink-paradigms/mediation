@@ -84,9 +84,14 @@ describe("DefaultCapabilityResolver (ABS-A6)", () => {
     assert.equal(result.plan.diagnostics.length, 0);
     assert.equal(result.diagnostics.length, 0);
     assert.equal(result.plan.capabilities.length, 3);
+    assert.equal(result.artifacts.length, 3);
     assert.deepEqual(
       result.plan.capabilities.map((c) => c.id),
       ["ext/root", "ext/family", "ext/agent"],
+    );
+    assert.deepEqual(
+      result.artifacts.map((a) => a.ref.id),
+      result.plan.capabilities.map((c) => c.id),
     );
     for (const ref of result.plan.capabilities) {
       assert.equal(ref.origin, "memory");

@@ -16,6 +16,7 @@ import {
   DefaultPresenceFactory,
   type PackSnapshotFn,
 } from "../app/factory.ts";
+import type { CapabilityResolver } from "../ports/capability-resolver.ts";
 import type { PackResolver } from "../ports/pack-resolver.ts";
 import { toPackSnapshot } from "./packs/pack-snapshot.ts";
 import {
@@ -37,6 +38,11 @@ export type CreatePiPresenceFactoryOptions = PiEngineAdapterOptions & {
    * Default: definition.rootDir or MaterializeOptions.cwd.
    */
   readonly projectRoot?: string;
+  /**
+   * ABS-A7: when set, materialize uses CapabilityResolver (fail-closed)
+   * instead of PackResolver for pack plan construction.
+   */
+  readonly capabilityResolver?: CapabilityResolver;
 };
 
 /** Result of createPiPresenceFactory — factory is the product; engine for inspection. */
@@ -57,6 +63,7 @@ export function createPiPresenceFactory(
     packResolverOptions,
     toPackSnapshot: snapFn,
     projectRoot,
+    capabilityResolver,
     ...engineOpts
   } = opts;
 
@@ -68,6 +75,7 @@ export function createPiPresenceFactory(
     packResolver,
     toPackSnapshot: snapFn ?? toPackSnapshot,
     projectRoot,
+    capabilityResolver,
   });
 
   return { factory, engine };
