@@ -109,13 +109,14 @@ Missing capability → `CAPABILITY_RESOLVE_FAILED`, `engine.opened.length === 0`
 
 ## 4. Git
 
-**Branch tip:** recorded after commit via `git log --oneline -3` on `slice/CUT-capability-cutover`.
+**Slice commit:** `1a800ad` — CUT capability sole materialize resolve path.
 
 ```text
-# tip SHA filled by follow-up evidence commit
-CUT: make CapabilityResolver the sole materialize resolve path (D5).
+1a800ad CUT: make CapabilityResolver the sole materialize resolve path (D5).
 aeb96e6 Wave ABS G0: rollup evidence for completed abstraction DAG.
 ```
+
+Full SHA: `1a800ad9a9220ad94720daa43fe4959883c68c47`
 
 `npm run check` → typecheck + **174** tests pass + gauges OK  
 (`layer_import_violations=0` · `second_door_count=0` · `spawn_public_export_count=0` · `public_export_surface=178`)
