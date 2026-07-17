@@ -42,7 +42,7 @@ leaf (may Parked)
 cd company/platform/mediation && npm run check
 ```
 
-**Tip:** record after merge.
+**Tip after merge:** `3f6b229`.
 
 ---
 
