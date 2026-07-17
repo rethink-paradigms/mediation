@@ -90,7 +90,11 @@ gauges: OK
 ## 4. Git
 
 ```text
-(to be filled at commit tip)
+970f9fc ABS-A4: land MemoryCapabilityStore with get/put and optional Publisher.
+0e113f4 Merge branch 'slice/ABS-C2-host-mediation'.
+bdcb820 Merge branch 'slice/ABS-B2-cli-surface'.
 ```
+
+Full SHA: `970f9fcd4b1a746bce11f4509f79925746ef826d`
 
 No `git checkout` / switch. No merge of `main`. Commit only on `slice/ABS-A4-memory-capability-store`.
