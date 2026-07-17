@@ -1,7 +1,9 @@
 /**
  * @company/mediation — public surface.
  * S0–S2: types + ports + experimental app factory/presence (mock-first).
- * No second door (Pi session open only under adapters/pi when it lands).
+ * S2b: real Pi lives under src/adapters/pi/ (import there for composition);
+ * not re-exported here so the package door stays EnginePort + factory.
+ * Session open for the real engine is confined to that adapter tree.
  *
  * Relative re-exports use `.ts` for strip-types runtime (noEmit package).
  */
