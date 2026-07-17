@@ -79,11 +79,10 @@ npm run check
 ## 5. Git
 
 ```
-0800d3d S11: kill spawn as identity — private legacy stub and public-export gauge (D3).
-0800d3d50fd9ec3cd3d566ea009ebfb12a94fcaa
+d9b822e S11: kill spawn as identity — private legacy stub and public-export gauge (D3).
 ```
 
-Branch: `slice/S11-kill-spawn` only; **not** merged to main.
+Full tip after this evidence refresh is recorded by the follow-up commit on `slice/S11-kill-spawn` only; **not** merged to main.
 
 ---
 
