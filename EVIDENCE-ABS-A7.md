@@ -100,11 +100,14 @@ gauges: OK
 
 ## 4. Git
 
-**Slice commit:** (recorded at commit time)
+**Slice commit:** `98e5f9b` — ABS-A7 factory + compose CapabilityResolver wiring.
 
 ```text
-git log --oneline -5
+98e5f9b ABS-A7: wire optional CapabilityResolver into DefaultPresenceFactory.
+a725f90 Merge branch 'slice/ABS-A6-capability-resolver'.
 ```
+
+Full SHA: `98e5f9b816334f295831ef44328303c5c33307dc`
 
 `npm run check` → typecheck + **163** tests pass + gauges OK  
 (`layer_import_violations=0` · `second_door_count=0` · `spawn_public_export_count=0` · `public_export_surface=164`)
