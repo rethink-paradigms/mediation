@@ -4,6 +4,8 @@
  * S2b: real Pi under src/adapters/pi/ (composition import; not re-exported here).
  * S2c: createPiPresenceFactory in src/adapters/wiring.ts (composition import; not here).
  * S5a: OpenWorkflow RuntimePort + engagement leaf + MemoryJoinStore.
+ * S5b: leaf + createPiPresenceFactory (tests; composition via wiring).
+ * S6: SqliteJoinStore durable join.
  * One door: real engine session open only under adapters/pi.
  *
  * Relative re-exports use `.ts` for strip-types runtime (noEmit package).
@@ -142,3 +144,5 @@ export {
 } from "./adapters/openworkflow/workflows/engagement.ts";
 export type { EngagementLeafDeps } from "./adapters/openworkflow/workflows/engagement.ts";
 export { MemoryJoinStore } from "./adapters/join/memory-store.ts";
+export { SqliteJoinStore } from "./adapters/join/sqlite-store.ts";
+export type { SqliteJoinStoreOptions } from "./adapters/join/sqlite-store.ts";
