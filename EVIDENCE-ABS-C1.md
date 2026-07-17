@@ -78,10 +78,10 @@ createSqliteRuntimeHost({ dbPath, factory, resolveDefinition, join?, registerPla
 
 ## 6. Git
 
-**Tip:** `bedec9eb0e626ee3f1ac53c06004847a988a442d`
+**Slice commit:** `feae93f` — ABS-C1 host + test + exports.
 
 ```
-bedec9e ABS-C1: productize createSqliteRuntimeHost (sqlite OW compose).
+feae93f ABS-C1: productize createSqliteRuntimeHost (sqlite OW compose).
 ed531c5 Merge branch 'slice/S11-kill-spawn'.
 675ef17 Merge branch 'slice/S10-plan-leaf'.
 ```
