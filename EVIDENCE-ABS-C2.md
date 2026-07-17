@@ -79,10 +79,12 @@ createHostedMediation({ dbPath, mockEngine?, projectRoot?, resolveDefinition?, .
 
 ## 6. Git
 
-**Slice commit:** (recorded after commit)
+**Slice commit:** `62b31fd` — ABS-C2 host + mediation compose + test + exports.
 
 ```
-git log --oneline -5
+62b31fd ABS-C2: compose Mediation with createSqliteRuntimeHost for dispatch.
+22bb56d Merge branch 'slice/ABS-C1-runtime-host'.
+79f4a20 Merge branch 'slice/ABS-B1-surface-port'.
 ```
 
 `npm run check` → typecheck + 111 tests pass + gauges OK  
