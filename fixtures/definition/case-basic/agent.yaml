@@ -1,0 +1,36 @@
+name: case-basic
+model: deepseek/deepseek-v4-flash
+thinking: low
+max_concurrency: 2
+task_timeout_minutes: 15
+max_tokens: 4096
+max_cost_per_day_usd: 1.5
+
+agent_mode: dynamic
+active_tools:
+  - read
+  - bash
+  - tool_finder
+
+tools:
+  builtin: [read, bash, write, edit, ls, find, grep]
+  custom: [web_search]
+
+extensions:
+  - context-memory
+  - foo
+
+skills:
+  - ./skill/
+
+prompt: prompt.md
+
+no_core_skills: false
+
+memory:
+  enabled: true
+  namespace: agent/case-basic
+  recallLimit: 3
+
+# residual / forward-compat — should land in meta
+tracing: false
