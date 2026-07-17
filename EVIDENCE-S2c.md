@@ -116,11 +116,11 @@ npm run check
 ### git
 
 ```
+343b09d S2c: record evidence git log tip and check surface.
 53998c8 S2c: createPiPresenceFactory wires PiEngineAdapter to Settled.
 7a47e1c Fix second_door gauge false positive on comments after merge.
 681be9b Merge branch 'slice/S5a-ow-runtime-port'.
 429901b Merge branch 'slice/S2b-pi-engine-adapter'.
-4f36d28 S2b: record evidence git log tip and check surface.
 
 npm run check  # typecheck + 45 tests + gauges OK (post-commit)
 ```
