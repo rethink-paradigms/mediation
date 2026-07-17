@@ -108,7 +108,11 @@ Existing pack goldens still green via thin-wrap:
 ## 4. Git
 
 ```text
-(git log --oneline -5 recorded after commit)
+19ce148 ABS-A3: land FsCapabilityStore and move pack search order into FS adapter (D5).
+0e113f4 Merge branch 'slice/ABS-C2-host-mediation'.
+bdcb820 Merge branch 'slice/ABS-B2-cli-surface'.
 ```
+
+Full SHA: `19ce14800abcbfe3c0ccb2607bbe479407e1324e`
 
 No `git checkout` / switch. No merge of `main`. Commit only on `slice/ABS-A3-fs-capability-store`.
