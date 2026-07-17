@@ -20,6 +20,7 @@ import type { JoinStore } from "../ports/join.ts";
 import type {
   DispatchHandle,
   DispatchInput,
+  PlanSpec,
   RuntimePort,
   RuntimeStatus,
 } from "../ports/runtime.ts";
@@ -234,6 +235,16 @@ export class Mediation {
       );
     }
     return this.runtime.dispatch(input);
+  }
+
+  /** Dispatch durable multi-node plan via RuntimePort (recipe C / plan). */
+  async runPlan(plan: PlanSpec): Promise<DispatchHandle> {
+    if (!this.runtime) {
+      throw new Error(
+        "Mediation.runPlan: no RuntimePort configured (wire OpenWorkflowRuntime)",
+      );
+    }
+    return this.runtime.runPlan(plan);
   }
 
   async wait(
