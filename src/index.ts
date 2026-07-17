@@ -169,6 +169,25 @@ export type {
   RegisterEngagementWorkflowDeps,
   RegisterEngagementWorkflowResult,
 } from "./adapters/openworkflow/register-engagement.ts";
+// --- S10 Plan leaf (sequential PlanSpec via same Gamma engagement leaf) ---
+export {
+  runPlanWorkflow,
+  planNodeToEngagementInput,
+  summarizePlanResults,
+} from "./adapters/openworkflow/workflows/plan.ts";
+export type {
+  PlanLeafDeps,
+  PlanNodeResult,
+  PlanWorkflowOutput,
+} from "./adapters/openworkflow/workflows/plan.ts";
+export {
+  registerPlanWorkflow,
+} from "./adapters/openworkflow/register-plan.ts";
+export type {
+  PlanOwClient,
+  RegisterPlanWorkflowDeps,
+  RegisterPlanWorkflowResult,
+} from "./adapters/openworkflow/register-plan.ts";
 export { MemoryJoinStore } from "./adapters/join/memory-store.ts";
 export { SqliteJoinStore } from "./adapters/join/sqlite-store.ts";
 export type { SqliteJoinStoreOptions } from "./adapters/join/sqlite-store.ts";
