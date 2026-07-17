@@ -122,9 +122,13 @@ npm run check
 ### git
 
 ```
-# after commit (see log tip)
-git log --oneline -5
-npm run check
+37dff32 S2b: PiEngineAdapter with real createAgentSession under adapters/pi.
+5c034af S0g: stabilize evidence packet git log wording.
+dcd217b S0g: refresh evidence git log SHAs after evidence commit.
+994e22e S0g: evidence packet for git baseline and fail-fast check surface.
+3503096 S0g: git baseline and fail-fast toolchain over accepted S0–S2.
+
+npm run check  # typecheck + 27 tests + gauges OK (post-commit)
 ```
 
 Branch: `slice/S2b-pi-engine-adapter` only (worktree `mediation-wt-s2b`).
