@@ -71,7 +71,10 @@ npm run check
 ## 5. Git
 
 ```text
-# tip recorded after commit on branch only
+6e416cf ABS-B2: wrap Mediation as SurfacePort; CLI uses SurfacePort only.
+22bb56d Merge branch 'slice/ABS-C1-runtime-host'.
+79f4a20 Merge branch 'slice/ABS-B1-surface-port'.
 ```
 
+**Tip:** `6e416cf14ac442c830f6f26b3540fe5d69edf7b8`  
 **Branch only:** `slice/ABS-B2-cli-surface` — no checkout/switch, no merge main.
