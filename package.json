@@ -16,7 +16,9 @@
     "gauge:pack-plan": "node --experimental-strip-types scripts/gauges/pack-plan.ts",
     "gauge:imports": "node --experimental-strip-types scripts/gauges/layer-imports.ts",
     "gauge:doors": "node --experimental-strip-types scripts/gauges/second-door.ts",
-    "check": "npm run typecheck && npm run test && npm run gauges"
+    "check": "npm run typecheck && npm run test && npm run gauges",
+    "mediation": "node --experimental-strip-types src/surfaces/cli.ts",
+    "cli": "node --experimental-strip-types src/surfaces/cli.ts"
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "^0.80.10",

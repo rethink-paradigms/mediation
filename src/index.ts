@@ -96,6 +96,21 @@ export type {
   SettledPolicyInput,
   SettledDecision,
 } from "./app/settled-policy.ts";
+
+// --- S7 Mediation façade (ports only; compose in adapters) ---
+export { Mediation } from "./app/mediation.ts";
+export type {
+  MediationDeps,
+  EngageLocalInput,
+  EngageLocalResult,
+} from "./app/mediation.ts";
+export {
+  createLocalMediation,
+} from "./adapters/compose.ts";
+export type {
+  CreateLocalMediationOptions,
+  LocalMediationComposition,
+} from "./adapters/compose.ts";
 export {
   MockEnginePort,
   MockEngineSessionHandle,
