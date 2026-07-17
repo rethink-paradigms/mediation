@@ -29,6 +29,18 @@ export type {
   PackDiagnosticSeverity,
 } from "./domain/packs.ts";
 
+// --- ABS-A1 domain capability types (D5 medium independence) ---
+export type {
+  CapabilityId,
+  CapabilityKind,
+  CapabilityOrigin,
+  CapabilityRef,
+  CapabilityDiagnostic,
+  CapabilityDiagnosticSeverity,
+  CapabilityPlan,
+} from "./domain/capability.ts";
+export { asCapabilityId } from "./domain/capability.ts";
+
 export type {
   SessionRef,
   PresenceStatus,
