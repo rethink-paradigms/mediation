@@ -112,17 +112,19 @@ export class DefaultAgentPresence implements AgentPresence {
       }
 
       const idle = await this.handle.waitUntilIdle();
-      // S2: no park-tool wiring yet; parkIntent always false
-      const decision = evaluateSettled({ idle, parkIntent: false });
+      const parkIntent = input.parkIntent === true;
+      const decision = evaluateSettled({ idle, parkIntent });
 
       if (!decision.allow) {
         if (decision.reason === "park_intent") {
           this.setStatus("parked");
+          const reason = input.parkReason ?? "park_intent";
           return {
             kind: "parked",
             sessionRef: this.sessionRef,
-            reason: "park_intent",
-            resumeToken: `park:${this.sessionRef}`,
+            reason,
+            resumeToken: `park:${this.sessionRef}:${Date.now().toString(36)}`,
+            payload: { text: input.text, mode },
           };
         }
         this.setStatus("idle");

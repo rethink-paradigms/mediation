@@ -39,6 +39,9 @@ export type EngageLocalInput = {
   readonly resume?: SessionRef;
   readonly cwd?: string;
   readonly mode?: EngageInput["mode"];
+  /** S9: force Parked outcome after idle (recipe / test). */
+  readonly parkIntent?: boolean;
+  readonly parkReason?: string;
 };
 
 export type EngageLocalResult = {
@@ -46,6 +49,28 @@ export type EngageLocalResult = {
   readonly sessionRef?: SessionRef;
   readonly packSnapshotHash?: string;
   readonly definitionId: string;
+};
+
+/**
+ * S8 reenter: rematerialize same sessionRef, optional packSnapshot gate, engage.
+ */
+export type ReenterInput = {
+  readonly agent: AgentRef;
+  readonly sessionRef: SessionRef;
+  readonly task: string;
+  readonly cwd?: string;
+  readonly mode?: EngageInput["mode"];
+  /**
+   * If set, fail when rematerialized planHash differs (pack parity).
+   */
+  readonly expectedPackSnapshotHash?: string;
+  readonly parkIntent?: boolean;
+  readonly parkReason?: string;
+};
+
+export type ReenterResult = EngageLocalResult & {
+  /** True when expectedPackSnapshotHash was provided and matched. */
+  readonly packSnapshotMatch: boolean;
 };
 
 /**
@@ -91,6 +116,8 @@ export class Mediation {
       const outcome = await presence.engage({
         text: input.task,
         mode: input.mode,
+        parkIntent: input.parkIntent,
+        parkReason: input.parkReason,
       });
       return {
         outcome,
@@ -105,6 +132,98 @@ export class Mediation {
         // best-effort
       }
     }
+  }
+
+  /**
+   * S8 reenter recipe: materialize(resume) → optional pack gate → engage → dispose.
+   * Same monocoque as engageLocal; requires sessionRef (cognitive identity).
+   */
+  async reenter(input: ReenterInput): Promise<ReenterResult> {
+    const definition = await this.load(input.agent);
+    const presence = await this.materialize(definition, {
+      resume: input.sessionRef,
+      cwd: input.cwd ?? input.agent.rootDir,
+    });
+    try {
+      const hash = presence.packSnapshot.planHash;
+      if (
+        input.expectedPackSnapshotHash !== undefined &&
+        input.expectedPackSnapshotHash !== hash
+      ) {
+        return {
+          outcome: {
+            kind: "failed",
+            sessionRef: presence.sessionRef,
+            error: {
+              message: `reenter packSnapshot mismatch: expected ${input.expectedPackSnapshotHash}, got ${hash}`,
+              code: "PACK_SNAPSHOT_MISMATCH",
+            },
+          },
+          sessionRef: presence.sessionRef,
+          packSnapshotHash: hash,
+          definitionId: definition.id,
+          packSnapshotMatch: false,
+        };
+      }
+
+      const outcome = await presence.engage({
+        text: input.task,
+        mode: input.mode ?? "continue",
+        parkIntent: input.parkIntent,
+        parkReason: input.parkReason,
+      });
+      return {
+        outcome,
+        sessionRef: presence.sessionRef,
+        packSnapshotHash: hash,
+        definitionId: definition.id,
+        packSnapshotMatch: true,
+      };
+    } finally {
+      try {
+        await presence.dispose();
+      } catch {
+        // best-effort
+      }
+    }
+  }
+
+  /**
+   * Reenter using JoinStore sessionRef (and optional stored planHash gate).
+   */
+  async reenterFromJoin(
+    key: { runId: RunId } | { sessionRef: SessionRef },
+    input: Omit<ReenterInput, "sessionRef" | "expectedPackSnapshotHash"> & {
+      readonly enforcePackSnapshot?: boolean;
+    },
+  ): Promise<ReenterResult> {
+    if (!this.join) {
+      throw new Error("Mediation.reenterFromJoin: no JoinStore configured");
+    }
+    const record =
+      "runId" in key
+        ? await this.join.getByRunId(key.runId)
+        : await this.join.getBySessionRef(key.sessionRef);
+    if (!record) {
+      return {
+        outcome: {
+          kind: "failed",
+          error: {
+            message: "reenterFromJoin: no join record",
+            code: "JOIN_NOT_FOUND",
+          },
+        },
+        definitionId: "",
+        packSnapshotMatch: false,
+      };
+    }
+    return this.reenter({
+      ...input,
+      sessionRef: record.sessionRef,
+      expectedPackSnapshotHash: input.enforcePackSnapshot
+        ? record.packSnapshot.planHash
+        : undefined,
+    });
   }
 
   /** Dispatch durable engagement via RuntimePort. */

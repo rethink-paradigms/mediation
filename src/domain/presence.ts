@@ -25,6 +25,13 @@ export type EngageInput = {
   readonly text: string;
   readonly images?: readonly unknown[];
   readonly mode?: "prompt" | "continue";
+  /**
+   * When true after engine idle, engage returns Parked (D1 / S9).
+   * Stand-in for wait-tool park detection until tool bridge lands.
+   */
+  readonly parkIntent?: boolean;
+  /** Optional human-readable park reason (default: park_intent). */
+  readonly parkReason?: string;
 };
 
 /**

@@ -103,6 +103,8 @@ export type {
   MediationDeps,
   EngageLocalInput,
   EngageLocalResult,
+  ReenterInput,
+  ReenterResult,
 } from "./app/mediation.ts";
 export {
   createLocalMediation,
