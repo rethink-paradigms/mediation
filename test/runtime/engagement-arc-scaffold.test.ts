@@ -1,5 +1,5 @@
 /**
- * Engagement arc — LIFE-P1 Model P park wait + settled path.
+ * Engagement arc — LIFE-P1 wait + LIFE-P2 wake continue.
  */
 
 import assert from "node:assert/strict";
@@ -13,16 +13,24 @@ import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
 import { engagementWakeSignal } from "../../src/adapters/openworkflow/signals.ts";
-import { runEngagementArc } from "../../src/adapters/openworkflow/workflows/engagement-arc.ts";
+import {
+  ENGAGEMENT_ARC_MAX_PARK_LOOPS,
+  runEngagementArc,
+} from "../../src/adapters/openworkflow/workflows/engagement-arc.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
+import { asSessionRef } from "../../src/domain/presence.ts";
 import { agentDefForPacks } from "../helpers/agent-def.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 
-function makeFactory(): DefaultPresenceFactory {
+function makeFactory(sessionRef?: string): DefaultPresenceFactory {
   return new DefaultPresenceFactory({
-    engine: new MockEnginePort(),
+    engine: new MockEnginePort({
+      sessionRefFactory: sessionRef
+        ? () => asSessionRef(sessionRef)
+        : undefined,
+    }),
     toPackSnapshot,
     capabilityResolver: createCapabilityResolver(
       createFsCapabilityStore({
@@ -33,7 +41,7 @@ function makeFactory(): DefaultPresenceFactory {
   });
 }
 
-describe("runEngagementArc (LIFE-P1)", () => {
+describe("runEngagementArc (LIFE-P1/P2)", () => {
   it("settled path: one leaf step, no waitForSignal", async () => {
     const factory = makeFactory();
     const join = new MemoryJoinStore();
@@ -70,30 +78,109 @@ describe("runEngagementArc (LIFE-P1)", () => {
     assert.equal(outcome.kind, "settled");
   });
 
-  it("parked path: waitForSignal with wake address then return parked (P1 interim)", async () => {
-    const factory = makeFactory();
+  it("LIFE-P2: park → wake → continue leaf Settled (same sessionRef)", async () => {
+    const sessionRef = "arc-session-p2";
+    const factory = makeFactory(sessionRef);
     const join = new MemoryJoinStore();
-    const runId = "arc-run-park";
+    const runId = "arc-run-p2";
+    const stepNames: string[] = [];
     let waitedSignal: string | undefined;
-    let waitStepName: string | undefined;
+    let continueTask: string | undefined;
+    let continueMode: string | undefined;
+    let continueSession: string | undefined;
 
     const outcome = await runEngagementArc({
       input: {
-        agentName: "arc-park",
+        agentName: "arc-p2",
         agentRoot: FIXTURE_ROOT,
-        task: "park me",
+        task: "first park",
         parkIntent: true,
-        parkReason: "p1-park",
+        parkReason: "need-human",
       },
       runId,
       step: {
-        async run(_config, fn) {
+        async run(config, fn) {
+          stepNames.push(config.name);
+          // Capture continue leaf input via resolveDefinition side channel:
+          // inspect is hard; use a wrapper on resolve that reads nothing —
+          // instead spy by wrapping leaf via task only after wake.
           return fn();
         },
         async waitForSignal(opts) {
           waitedSignal = opts.signal;
-          waitStepName = opts.name;
-          return { data: { payloadText: "later" } as never };
+          return {
+            data: {
+              payloadText: "human says go",
+              mode: "continue",
+            } as never,
+          };
+        },
+      },
+      deps: {
+        factory,
+        join,
+        resolveDefinition: (inp) => {
+          if (inp.engageMode === "continue" || inp.sessionRef) {
+            continueTask = inp.task;
+            continueMode = inp.engageMode;
+            continueSession = inp.sessionRef;
+          }
+          return agentDefForPacks(inp.agentRoot, ["foo", "bar"], inp.agentName);
+        },
+      },
+    });
+
+    assert.equal(waitedSignal, engagementWakeSignal(runId));
+    assert.deepEqual(stepNames, ["engagement-leaf", "engagement-continue-1"]);
+    assert.equal(continueTask, "human says go");
+    assert.equal(continueMode, "continue");
+    assert.equal(continueSession, sessionRef);
+    assert.equal(outcome.kind, "settled");
+    if (outcome.kind === "settled") {
+      assert.equal(outcome.sessionRef, sessionRef);
+    }
+
+    const record = await join.getByRunId(runId as never);
+    assert.ok(record);
+    assert.equal(record.status, "settled");
+    assert.equal(record.sessionRef, sessionRef);
+  });
+
+  it("LIFE-P2: re-park once then settle", async () => {
+    const factory = makeFactory("arc-repark-sess");
+    const join = new MemoryJoinStore();
+    const runId = "arc-run-repark";
+    const stepNames: string[] = [];
+    let wakeCount = 0;
+
+    const outcome = await runEngagementArc({
+      input: {
+        agentName: "arc-repark",
+        agentRoot: FIXTURE_ROOT,
+        task: "park 1",
+        parkIntent: true,
+        parkReason: "first",
+      },
+      runId,
+      step: {
+        async run(config, fn) {
+          stepNames.push(config.name);
+          return fn();
+        },
+        async waitForSignal() {
+          wakeCount += 1;
+          if (wakeCount === 1) {
+            return {
+              data: {
+                payloadText: "still waiting",
+                parkIntent: true,
+                parkReason: "second",
+              } as never,
+            };
+          }
+          return {
+            data: { payloadText: "done now", mode: "continue" } as never,
+          };
         },
       },
       deps: {
@@ -104,16 +191,13 @@ describe("runEngagementArc (LIFE-P1)", () => {
       },
     });
 
-    assert.equal(waitedSignal, engagementWakeSignal(runId));
-    assert.equal(waitStepName, "engagement-wake");
-    assert.equal(outcome.kind, "parked");
-    if (outcome.kind === "parked") {
-      assert.equal(outcome.reason, "p1-park");
-    }
-
-    const record = await join.getByRunId(runId as never);
-    assert.ok(record);
-    assert.equal(record.status, "parked");
+    assert.equal(wakeCount, 2);
+    assert.deepEqual(stepNames, [
+      "engagement-leaf",
+      "engagement-continue-1",
+      "engagement-continue-2",
+    ]);
+    assert.equal(outcome.kind, "settled");
   });
 
   it("parked without waitForSignal → fail-closed PARK_WAIT_UNAVAILABLE", async () => {
@@ -132,7 +216,6 @@ describe("runEngagementArc (LIFE-P1)", () => {
         async run(_config, fn) {
           return fn();
         },
-        // waitForSignal omitted
       },
       deps: {
         factory,
@@ -146,5 +229,9 @@ describe("runEngagementArc (LIFE-P1)", () => {
     if (outcome.kind === "failed") {
       assert.equal(outcome.error.code, "PARK_WAIT_UNAVAILABLE");
     }
+  });
+
+  it("exports max park loop constant", () => {
+    assert.equal(ENGAGEMENT_ARC_MAX_PARK_LOOPS, 32);
   });
 });

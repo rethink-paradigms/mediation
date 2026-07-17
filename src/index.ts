@@ -248,6 +248,7 @@ export {
 export type { EngagementLeafDeps } from "./adapters/openworkflow/workflows/engagement.ts";
 export {
   runEngagementArc,
+  ENGAGEMENT_ARC_MAX_PARK_LOOPS,
 } from "./adapters/openworkflow/workflows/engagement-arc.ts";
 export type {
   EngagementArcStep,

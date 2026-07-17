@@ -37,6 +37,12 @@ export type WakeSignalData = {
   readonly payloadText: string;
   /** Default continue after park (D1). */
   readonly mode?: "prompt" | "continue";
+  /**
+   * When true, continue leaf parks again after idle (explicit re-park).
+   * Default: not set → continue path does not parkIntent.
+   */
+  readonly parkIntent?: boolean;
+  readonly parkReason?: string;
 };
 
 export function isWakeSignalData(value: unknown): value is WakeSignalData {
@@ -51,12 +57,24 @@ export function isWakeSignalData(value: unknown): value is WakeSignalData {
  */
 export function parseWakeSignalData(value: unknown): WakeSignalData {
   if (isWakeSignalData(value)) {
-    return {
-      payloadText: value.payloadText,
-      mode: value.mode === "prompt" || value.mode === "continue"
+    const mode: "prompt" | "continue" =
+      value.mode === "prompt" || value.mode === "continue"
         ? value.mode
-        : "continue",
+        : "continue";
+    const out: WakeSignalData = {
+      payloadText: value.payloadText,
+      mode,
     };
+    if (value.parkIntent === true) {
+      return {
+        ...out,
+        parkIntent: true,
+        ...(typeof value.parkReason === "string"
+          ? { parkReason: value.parkReason }
+          : {}),
+      };
+    }
+    return out;
   }
   if (typeof value === "string") {
     return { payloadText: value, mode: "continue" };
