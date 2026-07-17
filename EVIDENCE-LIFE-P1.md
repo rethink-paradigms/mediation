@@ -46,7 +46,7 @@ cd company/platform/mediation
 npm run check
 ```
 
-**Tip:** record after merge (`git log -1`).
+**Tip after merge:** `4e45c66` (merge of `69d24c1` LIFE-P1). Tests: 188 pass.
 
 ---
 
