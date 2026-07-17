@@ -1,6 +1,7 @@
 /**
  * @company/mediation — public surface.
  * S0–S2: types + ports + experimental app factory/presence (mock-first).
+ * S5a: OpenWorkflow RuntimePort + engagement leaf + MemoryJoinStore.
  * No second door (Pi session open only under adapters/pi when it lands).
  *
  * Relative re-exports use `.ts` for strip-types runtime (noEmit package).
@@ -103,3 +104,30 @@ export {
   PackResolverImpl,
   createPackResolver,
 } from "./adapters/packs/resolve-packs.ts";
+
+// --- S5a OpenWorkflow RuntimePort + Gamma leaf (orchestration; no Pi) ---
+export {
+  OpenWorkflowRuntime,
+  defaultEngagementWorkflowSpec,
+  defaultPlanWorkflowSpec,
+} from "./adapters/openworkflow/runtime.ts";
+export type {
+  OpenWorkflowRuntimeOptions,
+  RuntimeOwClient,
+  RuntimeBackend,
+  WorkflowSpecRef,
+  OwWorkflowRunStatus,
+} from "./adapters/openworkflow/runtime.ts";
+export type {
+  EngagementWorkflowInput,
+  EngagementWorkflowOutput,
+} from "./adapters/openworkflow/types.ts";
+export {
+  ENGAGEMENT_WORKFLOW_NAME,
+  PLAN_WORKFLOW_NAME,
+} from "./adapters/openworkflow/types.ts";
+export {
+  runEngagementLeaf,
+} from "./adapters/openworkflow/workflows/engagement.ts";
+export type { EngagementLeafDeps } from "./adapters/openworkflow/workflows/engagement.ts";
+export { MemoryJoinStore } from "./adapters/join/memory-store.ts";

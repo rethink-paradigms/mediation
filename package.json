@@ -9,8 +9,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test test/",
-    "test:runtime": "node --experimental-strip-types --test test/runtime/",
+    "test": "node --experimental-strip-types --test test/**/*.test.ts",
+    "test:runtime": "node --experimental-strip-types --test test/runtime/**/*.test.ts",
     "gauges": "node --experimental-strip-types scripts/gauges/run.ts",
     "gauge:pack-plan": "node --experimental-strip-types scripts/gauges/pack-plan.ts",
     "gauge:imports": "node --experimental-strip-types scripts/gauges/layer-imports.ts",
