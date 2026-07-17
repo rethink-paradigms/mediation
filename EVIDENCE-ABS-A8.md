@@ -105,12 +105,14 @@ gauges: OK
 
 ## 4. Git
 
-**Slice commit:** (see `git log -1` after commit)
+**Slice commit:** `77a3b13` — ABS-A8 packPlan-only Pi extension bind (D5 L4).
 
 ```text
-# expected tip subject:
-ABS-A8: bind Pi extension paths only from packPlan PackRef.path (D5 L4).
+77a3b13 ABS-A8: bind Pi extension paths only from packPlan PackRef.path (D5 L4).
+09684e7 Merge branch 'slice/ABS-A7-factory-capability'.
 ```
+
+Full SHA: `77a3b132d167a091a32db7c80bfd2eef86ea85b0`
 
 `npm run check` → typecheck + **166** tests pass + gauges OK  
 (`layer_import_violations=0` · `second_door_count=0` · `spawn_public_export_count=0` · `public_export_surface=164`)
