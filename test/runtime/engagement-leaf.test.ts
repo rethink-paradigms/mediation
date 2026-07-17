@@ -11,15 +11,14 @@ import { fileURLToPath } from "node:url";
 import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  PackResolverImpl,
-  agentDefForPacks,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import { runEngagementLeaf } from "../../src/adapters/openworkflow/workflows/engagement.ts";
 import type { EngagementWorkflowInput } from "../../src/adapters/openworkflow/types.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { asRunId } from "../../src/domain/engagement.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
@@ -27,11 +26,13 @@ const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 function makeFactory(engine: MockEnginePort): DefaultPresenceFactory {
   return new DefaultPresenceFactory({
     engine,
-    packResolver: new PackResolverImpl({
-      homeDir: path.join(FIXTURE_ROOT, "_no_home"),
-    }),
     toPackSnapshot,
-    projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: path.join(FIXTURE_ROOT, "_no_home"),
+      }),
+    ),
   });
 }
 
@@ -141,7 +142,7 @@ describe("engagement leaf (Gamma structure, mock engine)", () => {
 
     assert.equal(output.kind, "failed");
     if (output.kind === "failed") {
-      assert.equal(output.error.code, "PACK_RESOLVE_FAILED");
+      assert.equal(output.error.code, "CAPABILITY_RESOLVE_FAILED");
     }
     assert.equal(join.size(), 0);
     assert.equal(engine.opened.length, 0);

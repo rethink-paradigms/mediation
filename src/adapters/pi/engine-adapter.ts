@@ -10,8 +10,10 @@
  * // const engine = new MockEnginePort(); // S2 unit path
  * const factory = new DefaultPresenceFactory({
  *   engine,
- *   packResolver: createPackResolver(),
  *   toPackSnapshot,
+ *   capabilityResolver: createCapabilityResolver(
+ *     createFsCapabilityStore({ projectRoot }),
+ *   ),
  * });
  * ```
  */

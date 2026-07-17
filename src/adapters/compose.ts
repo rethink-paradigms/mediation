@@ -4,6 +4,9 @@
  *
  * ABS-C2: createHostedMediation wires createSqliteRuntimeHost so
  * Mediation.dispatch / wait use a real RuntimePort.
+ *
+ * CUT: always wires CapabilityResolver (FsCapabilityStore default when
+ * projectRoot known). No PackResolver dual path into the factory.
  */
 
 import { DefaultPresenceFactory } from "../app/factory.ts";
@@ -12,7 +15,7 @@ import type { CapabilityResolver } from "../ports/capability-resolver.ts";
 import type { CapabilityStore } from "../ports/capability-store.ts";
 import type { JoinStore } from "../ports/join.ts";
 import type { RuntimePort } from "../ports/runtime.ts";
-import { createCapabilityResolver } from "./capability/resolve.ts";
+import type { FsCapabilityStoreOptions } from "./capability/fs-store.ts";
 import {
   createYamlDefinitionLoader,
   type YamlDefinitionLoaderOptions,
@@ -21,11 +24,8 @@ import { MemoryJoinStore } from "./join/memory-store.ts";
 import { MockEnginePort } from "./mock/engine-adapter.ts";
 import { toPackSnapshot } from "./packs/pack-snapshot.ts";
 import {
-  createPackResolver,
-  type PackResolverImplOptions,
-} from "./packs/resolve-packs.ts";
-import {
   createPiPresenceFactory,
+  resolveCapabilityResolver,
   type CreatePiPresenceFactoryOptions,
 } from "./wiring.ts";
 import {
@@ -38,7 +38,6 @@ import type { RegisterEngagementWorkflowDeps } from "./openworkflow/register-eng
 
 export type CreateLocalMediationOptions = {
   readonly loaderOptions?: YamlDefinitionLoaderOptions;
-  readonly packResolverOptions?: PackResolverImplOptions;
   readonly projectRoot?: string;
   readonly join?: JoinStore;
   readonly runtime?: RuntimePort;
@@ -47,33 +46,26 @@ export type CreateLocalMediationOptions = {
   /** When mockEngine is false, Pi factory options. */
   readonly pi?: CreatePiPresenceFactoryOptions;
   /**
-   * ABS-A7: optional CapabilityResolver for factory materialize.
-   * When omitted, `capabilityStore` (if set) is wrapped via createCapabilityResolver.
-   * When neither is set, factory keeps PackResolver path (backward compat).
+   * Explicit CapabilityResolver (preferred when set).
+   * CUT: sole materialize resolve path.
    */
   readonly capabilityResolver?: CapabilityResolver;
-  /** ABS-A7: optional store; wired to DefaultCapabilityResolver when resolver omitted. */
+  /** When resolver omitted, wrap via createCapabilityResolver. */
   readonly capabilityStore?: CapabilityStore;
+  /**
+   * Options for default FsCapabilityStore (homeDir override for tests).
+   * Applied when neither capabilityResolver nor capabilityStore is set and
+   * projectRoot is known.
+   */
+  readonly fsStoreOptions?: Omit<FsCapabilityStoreOptions, "projectRoot">;
 };
 
 /**
- * Resolve optional capability wiring for DefaultPresenceFactory / Pi factory.
- * Prefer explicit resolver; else wrap store; else undefined (PackResolver path).
+ * Resolve CapabilityResolver for DefaultPresenceFactory / Pi factory.
+ * Prefer explicit resolver; else wrap store; else Fs(projectRoot); else empty Memory.
+ * Re-exported from wiring for a single default policy.
  */
-export function resolveOptionalCapabilityResolver(
-  opts: Pick<
-    CreateLocalMediationOptions,
-    "capabilityResolver" | "capabilityStore"
-  >,
-): CapabilityResolver | undefined {
-  if (opts.capabilityResolver !== undefined) {
-    return opts.capabilityResolver;
-  }
-  if (opts.capabilityStore !== undefined) {
-    return createCapabilityResolver(opts.capabilityStore);
-  }
-  return undefined;
-}
+export { resolveCapabilityResolver };
 
 export type LocalMediationComposition = {
   readonly mediation: Mediation;
@@ -89,25 +81,28 @@ type MindWiring = {
 function wireMind(opts: CreateLocalMediationOptions): MindWiring {
   const loader = createYamlDefinitionLoader(opts.loaderOptions);
   const join = opts.join ?? new MemoryJoinStore();
-  const capabilityResolver = resolveOptionalCapabilityResolver(opts);
+  const capabilityResolver = resolveCapabilityResolver({
+    capabilityResolver: opts.capabilityResolver,
+    capabilityStore: opts.capabilityStore,
+    projectRoot: opts.projectRoot,
+    fsStoreOptions: opts.fsStoreOptions,
+  });
 
   let factory: MediationDeps["factory"];
   if (opts.mockEngine === false) {
     const composed = createPiPresenceFactory({
       ...opts.pi,
-      packResolverOptions:
-        opts.pi?.packResolverOptions ?? opts.packResolverOptions,
       projectRoot: opts.pi?.projectRoot ?? opts.projectRoot,
       capabilityResolver:
         opts.pi?.capabilityResolver ?? capabilityResolver,
+      capabilityStore: opts.pi?.capabilityStore ?? opts.capabilityStore,
+      fsStoreOptions: opts.pi?.fsStoreOptions ?? opts.fsStoreOptions,
     });
     factory = composed.factory;
   } else {
     factory = new DefaultPresenceFactory({
       engine: new MockEnginePort(),
-      packResolver: createPackResolver(opts.packResolverOptions),
       toPackSnapshot,
-      projectRoot: opts.projectRoot,
       capabilityResolver,
     });
   }
@@ -118,6 +113,7 @@ function wireMind(opts: CreateLocalMediationOptions): MindWiring {
 /**
  * Wire Mediation for local engage (mock mind by default).
  * Dispatch requires caller-supplied `runtime`.
+ * Default resolve path: FsCapabilityStore(projectRoot) + CapabilityResolver.
  */
 export function createLocalMediation(
   opts: CreateLocalMediationOptions = {},

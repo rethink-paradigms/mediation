@@ -103,7 +103,7 @@ function composeDefaultSurface(opts: {
   const { mediation } = createLocalMediation({
     mockEngine: !opts.usePi,
     projectRoot: opts.projectRoot,
-    packResolverOptions: {
+    fsStoreOptions: {
       homeDir: path.join(opts.projectRoot, "_no_home"),
     },
   });

@@ -18,12 +18,11 @@ import { OpenWorkflowRuntime } from "../../src/adapters/openworkflow/runtime.ts"
 import { registerEngagementWorkflow } from "../../src/adapters/openworkflow/register-engagement.ts";
 import { ENGAGEMENT_WORKFLOW_NAME } from "../../src/adapters/openworkflow/types.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
-import {
-  PackResolverImpl,
-  agentDefForPacks,
-} from "../../src/adapters/packs/resolve-packs.ts";
+import { agentDefForPacks } from "../../src/adapters/packs/resolve-packs.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
+import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
@@ -34,11 +33,13 @@ function makeMockFactory(sessionRef = "mock-session-s5c"): DefaultPresenceFactor
   });
   return new DefaultPresenceFactory({
     engine,
-    packResolver: new PackResolverImpl({
-      homeDir: path.join(FIXTURE_ROOT, "_no_home"),
-    }),
     toPackSnapshot,
-    projectRoot: FIXTURE_ROOT,
+    capabilityResolver: createCapabilityResolver(
+      createFsCapabilityStore({
+        projectRoot: FIXTURE_ROOT,
+        homeDir: path.join(FIXTURE_ROOT, "_no_home"),
+      }),
+    ),
   });
 }
 
@@ -173,6 +174,6 @@ describe("OW worker + engagement leaf (S5c, mock mind)", () => {
       error?: { code?: string };
     };
     assert.equal(result?.kind, "failed");
-    assert.equal(result?.error?.code, "PACK_RESOLVE_FAILED");
+    assert.equal(result?.error?.code, "CAPABILITY_RESOLVE_FAILED");
   });
 });

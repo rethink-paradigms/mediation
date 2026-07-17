@@ -150,7 +150,7 @@ export {
 } from "./adapters/surface/mediation-surface.ts";
 
 // --- S2 experimental app surface (mock-first; real Pi deferred) ---
-// ABS-A7: optional CapabilityResolver on factory; pack plan adapted from artifacts
+// CUT: CapabilityResolver is the sole materialize resolve path (D5)
 export {
   DefaultPresenceFactory,
   capabilitySpecFromDefinition,
@@ -198,7 +198,7 @@ export type { PlanRecipeInput, PlanRecipeResult } from "./app/recipes/plan.ts";
 export {
   createLocalMediation,
   createHostedMediation,
-  resolveOptionalCapabilityResolver,
+  resolveCapabilityResolver,
 } from "./adapters/compose.ts";
 export type {
   CreateLocalMediationOptions,

@@ -22,7 +22,7 @@ describe("createHostedMediation (ABS-C2, mock mind)", () => {
     dbPath: ":memory:",
     mockEngine: true,
     projectRoot: FIXTURE_ROOT,
-    packResolverOptions: {
+    fsStoreOptions: {
       homeDir: path.join(FIXTURE_ROOT, "_no_home"),
     },
     pollIntervalMs: 15,
