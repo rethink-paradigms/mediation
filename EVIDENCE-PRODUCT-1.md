@@ -42,7 +42,7 @@ git log -1
 npm run check
 ```
 
-**Tip at evidence write:** see `git log -1` after merge (do not invent SHA).
+**Tip after merge:** `f4868cd` (merge of `4a36ca8` PRODUCT-1 onto main).
 
 **Expected:** typecheck + tests + gauges OK.  
 **Tests:** 182 pass (was 174 pre-PRODUCT-1; +8 product suite).
