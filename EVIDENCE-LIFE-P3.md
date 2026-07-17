@@ -48,7 +48,7 @@ npm run check
 node --experimental-strip-types --test test/runtime/life-runtime-scenarios.test.ts
 ```
 
-**Tip:** record after merge.
+**Tip after merge:** `f664338` · 205 tests.
 
 ---
 
