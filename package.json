@@ -1,0 +1,26 @@
+{
+  "name": "@company/mediation",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Agent Presence mediation layer — one factory, EnginePort + RuntimePort",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/**/*.test.ts",
+    "gauges": "node --experimental-strip-types scripts/gauges/run.ts",
+    "gauge:pack-plan": "node --experimental-strip-types scripts/gauges/pack-plan.ts",
+    "gauge:imports": "node --experimental-strip-types scripts/gauges/layer-imports.ts",
+    "gauge:doors": "node --experimental-strip-types scripts/gauges/second-door.ts",
+    "check": "npm run typecheck && npm run test && npm run gauges"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

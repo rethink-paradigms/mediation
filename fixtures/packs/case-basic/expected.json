@@ -1,0 +1,11 @@
+{
+  "description": "case-basic: internal foo + project extensions bar",
+  "extensionSpecs": ["foo", "bar"],
+  "expectedPackCount": 2,
+  "expectedSources": {
+    "foo": "internal",
+    "bar": "project-extensions"
+  },
+  "missingSpecs": ["nope"],
+  "notes": "planHash is computed at test time (absolute paths differ by host); parity is two resolves equal"
+}

@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# Build / emit
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+*.lcov
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS junk
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Local databases / runtime state
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Package manager noise
+.npm/
+.pnpm-store/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/

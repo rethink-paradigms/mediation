@@ -1,0 +1,1 @@
+// fixture pack: foo (internal)

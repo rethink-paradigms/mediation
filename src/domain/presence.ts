@@ -1,0 +1,106 @@
+/**
+ * Presence monocoque contract (D1) — interfaces + value shapes only.
+ * No engage implementation, no engine vendor types.
+ */
+
+import type { AgentDefinition } from "./definition.js";
+import type { PackSnapshot } from "./packs.js";
+
+/** Branded durable cognitive artifact id/path. */
+export type SessionRef = string & { readonly __brand: "SessionRef" };
+
+export function asSessionRef(value: string): SessionRef {
+  return value as SessionRef;
+}
+
+export type PresenceStatus =
+  | "cold"
+  | "warming"
+  | "idle"
+  | "engaging"
+  | "parked"
+  | "disposed";
+
+export type EngageInput = {
+  readonly text: string;
+  readonly images?: readonly unknown[];
+  readonly mode?: "prompt" | "continue";
+};
+
+/**
+ * Observation / UI binding surface. Rebind must not re-resolve packs.
+ */
+export type AttachSurface =
+  | { readonly kind: "none" }
+  | { readonly kind: "terminal" }
+  | { readonly kind: "chat"; readonly channelId?: string }
+  | { readonly kind: "custom"; readonly name: string; readonly data?: unknown };
+
+/**
+ * Result of engage (D1). Settled | Parked | Failed.
+ */
+export type RunOutcome =
+  | {
+      readonly kind: "settled";
+      readonly sessionRef: SessionRef;
+      readonly result?: unknown;
+    }
+  | {
+      readonly kind: "parked";
+      readonly sessionRef: SessionRef;
+      readonly reason: string;
+      readonly resumeToken: string;
+      readonly payload?: unknown;
+    }
+  | {
+      readonly kind: "failed";
+      readonly sessionRef?: SessionRef;
+      readonly error: { readonly message: string; readonly code?: string; readonly cause?: unknown };
+    };
+
+export type MaterializeOptions = {
+  readonly resume?: SessionRef;
+  readonly cwd?: string;
+  readonly mode?: "headless" | "attached";
+  readonly surface?: AttachSurface;
+};
+
+/**
+ * Minimal presence/engine event union for observe (full union deferred in D1 §8).
+ */
+export type PresenceEvent =
+  | { readonly type: "status"; readonly status: PresenceStatus }
+  | { readonly type: "idle"; readonly at: string }
+  | { readonly type: "message"; readonly role: string; readonly text?: string }
+  | { readonly type: "error"; readonly message: string }
+  | { readonly type: "engine"; readonly name: string; readonly data?: unknown };
+
+export type InterruptKind = "steer" | "followUp" | "abort";
+
+/**
+ * Living (or rehydrated) agent presence — product monocoque operations (D1).
+ */
+export interface AgentPresence {
+  readonly id: string;
+  readonly definition: AgentDefinition;
+  readonly sessionRef: SessionRef;
+  readonly packSnapshot: PackSnapshot;
+  readonly status: PresenceStatus;
+
+  engage(input: EngageInput): Promise<RunOutcome>;
+  interrupt(kind: InterruptKind, payload?: unknown): Promise<void>;
+  attach(surface: AttachSurface): Promise<void>;
+  detach(): Promise<void>;
+  observe(listener: (event: PresenceEvent) => void): () => void;
+  dispose(): Promise<void>;
+}
+
+/**
+ * One door (D0 P1). Implementations construct Presence; surfaces never open sessions.
+ */
+export interface PresenceFactory {
+  materialize(
+    definition: AgentDefinition,
+    opts?: MaterializeOptions,
+  ): Promise<AgentPresence>;
+}
