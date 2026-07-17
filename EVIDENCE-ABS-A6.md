@@ -100,11 +100,13 @@ gauges: OK
 
 ## 4. Git
 
-**Slice commit:** (filled after commit)
+**Slice commit:** `0401bff` — ABS-A6 CapabilityResolver port + default adapter + tests + exports.
 
 ```text
-git log --oneline -3
+0401bff ABS-A6: CapabilityResolver port + DefaultCapabilityResolver (merge layers, store.get fail-closed).
 ```
+
+Full SHA: `0401bff1f8248a037a8cd7ff45096735ed7a6aff`
 
 `npm run check` → typecheck + **158** tests pass + gauges OK  
 (`layer_import_violations=0` · `second_door_count=0` · `spawn_public_export_count=0` · `public_export_surface=160`)
