@@ -273,3 +273,15 @@ export type { SqliteJoinStoreOptions } from "./adapters/join/sqlite-store.ts";
 
 // --- ABS-A4 MemoryCapabilityStore (tests/fixtures; no FS) ---
 export { MemoryCapabilityStore } from "./adapters/capability/memory-store.ts";
+
+// --- ABS-A6 CapabilityResolver (merge layers + store.get fail-closed) ---
+export type {
+  CapabilityResolver,
+  CapabilityResolveInput,
+  CapabilityResolveResult,
+} from "./ports/capability-resolver.ts";
+export {
+  DefaultCapabilityResolver,
+  createCapabilityResolver,
+} from "./adapters/capability/resolve.ts";
+export type { DefaultCapabilityResolverOptions } from "./adapters/capability/resolve.ts";
