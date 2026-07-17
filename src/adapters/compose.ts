@@ -7,7 +7,12 @@
  *
  * CUT: always wires CapabilityResolver (FsCapabilityStore default when
  * projectRoot known). No PackResolver dual path into the factory.
+ *
+ * PRODUCT-1: file-backed hosted dbPath defaults durable SqliteJoinStore
+ * (Memory only for :memory: or explicit inject).
  */
+
+import path from "node:path";
 
 import { DefaultPresenceFactory } from "../app/factory.ts";
 import { Mediation, type MediationDeps } from "../app/mediation.ts";
@@ -21,6 +26,7 @@ import {
   type YamlDefinitionLoaderOptions,
 } from "./definition/yaml-definition-loader.ts";
 import { MemoryJoinStore } from "./join/memory-store.ts";
+import { SqliteJoinStore } from "./join/sqlite-store.ts";
 import { MockEnginePort } from "./mock/engine-adapter.ts";
 import { toPackSnapshot } from "./packs/pack-snapshot.ts";
 import {
@@ -35,6 +41,31 @@ import {
   type SqliteRuntimeHost,
 } from "./openworkflow/host.ts";
 import type { RegisterEngagementWorkflowDeps } from "./openworkflow/register-engagement.ts";
+
+/** Default durable join file next to OW BackendSqlite path (PRODUCT-1). */
+export function defaultHostedJoinPath(dbPath: string): string {
+  return path.join(path.dirname(path.resolve(dbPath)), "mediation-join.sqlite");
+}
+
+/**
+ * Product join policy for createHostedMediation.
+ * Explicit `join` wins; else file db → SqliteJoinStore; else Memory.
+ */
+export function resolveHostedJoin(opts: {
+  readonly join?: JoinStore;
+  readonly dbPath: string;
+  readonly joinPath?: string;
+}): { readonly join: JoinStore; readonly ownedSqliteJoin: SqliteJoinStore | null } {
+  if (opts.join !== undefined) {
+    return { join: opts.join, ownedSqliteJoin: null };
+  }
+  if (opts.dbPath !== ":memory:") {
+    const joinFile = opts.joinPath ?? defaultHostedJoinPath(opts.dbPath);
+    const owned = new SqliteJoinStore({ path: joinFile });
+    return { join: owned, ownedSqliteJoin: owned };
+  }
+  return { join: new MemoryJoinStore(), ownedSqliteJoin: null };
+}
 
 export type CreateLocalMediationOptions = {
   readonly loaderOptions?: YamlDefinitionLoaderOptions;
@@ -133,10 +164,19 @@ export function createLocalMediation(
 /**
  * Host options for createHostedMediation (sqlite OW).
  * Mind/loader options mirror createLocalMediation; runtime comes from host.
+ *
+ * PRODUCT-1 join policy when `join` omitted:
+ * - file `dbPath` → SqliteJoinStore at `joinPath` or sibling mediation-join.sqlite
+ * - `:memory:` → MemoryJoinStore
  */
 export type CreateHostedMediationOptions = CreateLocalMediationOptions & {
   /** OW BackendSqlite path — filesystem file or `:memory:`. */
   readonly dbPath: string;
+  /**
+   * Durable join sqlite path when `join` is omitted and `dbPath` is a file.
+   * Default: `<dirname(dbPath)>/mediation-join.sqlite`.
+   */
+  readonly joinPath?: string;
   /** When true, also register plan workflow on the host. */
   readonly registerPlan?: boolean;
   /** Worker concurrency (default 1). */
@@ -166,9 +206,12 @@ export type HostedMediationComposition = {
  * Compose Mediation with createSqliteRuntimeHost so dispatch/wait work.
  * Shared factory + join across façade and worker leaf. Mock mind by default.
  *
+ * PRODUCT-1: file-backed `dbPath` defaults durable SqliteJoinStore; owned
+ * join is closed on `stop()`. Explicit `join` is never closed by compose.
+ *
  * ```ts
  * const { mediation, worker, stop } = createHostedMediation({
- *   dbPath: ":memory:",
+ *   dbPath: "/tmp/mediation-ow.sqlite",
  *   projectRoot,
  * });
  * await worker.start();
@@ -180,7 +223,13 @@ export type HostedMediationComposition = {
 export function createHostedMediation(
   opts: CreateHostedMediationOptions,
 ): HostedMediationComposition {
-  const { loader, factory, join } = wireMind(opts);
+  // Hosted join is product-policy (PRODUCT-1); wireMind join is unused here.
+  const { loader, factory } = wireMind(opts);
+  const { join, ownedSqliteJoin } = resolveHostedJoin({
+    join: opts.join,
+    dbPath: opts.dbPath,
+    joinPath: opts.joinPath,
+  });
 
   const resolveDefinition: RegisterEngagementWorkflowDeps["resolveDefinition"] =
     opts.resolveDefinition ??
@@ -214,6 +263,9 @@ export function createHostedMediation(
     host,
     runtime: host.runtime,
     worker: host.worker,
-    stop: () => host.stop(),
+    stop: async () => {
+      await host.stop();
+      ownedSqliteJoin?.close();
+    },
   };
 }
