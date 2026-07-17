@@ -9,12 +9,16 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test test/**/*.test.ts",
+    "test": "node --experimental-strip-types --test test/",
+    "test:runtime": "node --experimental-strip-types --test test/runtime/",
     "gauges": "node --experimental-strip-types scripts/gauges/run.ts",
     "gauge:pack-plan": "node --experimental-strip-types scripts/gauges/pack-plan.ts",
     "gauge:imports": "node --experimental-strip-types scripts/gauges/layer-imports.ts",
     "gauge:doors": "node --experimental-strip-types scripts/gauges/second-door.ts",
     "check": "npm run typecheck && npm run test && npm run gauges"
+  },
+  "dependencies": {
+    "openworkflow": "^0.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
