@@ -1,9 +1,9 @@
 /**
  * @company/mediation — public surface.
  * S0–S2: types + ports + experimental app factory/presence (mock-first).
- * S2b: real Pi lives under src/adapters/pi/ (import there for composition);
- * not re-exported here so the package door stays EnginePort + factory.
- * Session open for the real engine is confined to that adapter tree.
+ * S2b: real Pi under src/adapters/pi/ (composition import; not re-exported here).
+ * S5a: OpenWorkflow RuntimePort + engagement leaf + MemoryJoinStore.
+ * One door: createAgentSession only under adapters/pi.
  *
  * Relative re-exports use `.ts` for strip-types runtime (noEmit package).
  */
@@ -105,3 +105,30 @@ export {
   PackResolverImpl,
   createPackResolver,
 } from "./adapters/packs/resolve-packs.ts";
+
+// --- S5a OpenWorkflow RuntimePort + Gamma leaf (orchestration; no Pi) ---
+export {
+  OpenWorkflowRuntime,
+  defaultEngagementWorkflowSpec,
+  defaultPlanWorkflowSpec,
+} from "./adapters/openworkflow/runtime.ts";
+export type {
+  OpenWorkflowRuntimeOptions,
+  RuntimeOwClient,
+  RuntimeBackend,
+  WorkflowSpecRef,
+  OwWorkflowRunStatus,
+} from "./adapters/openworkflow/runtime.ts";
+export type {
+  EngagementWorkflowInput,
+  EngagementWorkflowOutput,
+} from "./adapters/openworkflow/types.ts";
+export {
+  ENGAGEMENT_WORKFLOW_NAME,
+  PLAN_WORKFLOW_NAME,
+} from "./adapters/openworkflow/types.ts";
+export {
+  runEngagementLeaf,
+} from "./adapters/openworkflow/workflows/engagement.ts";
+export type { EngagementLeafDeps } from "./adapters/openworkflow/workflows/engagement.ts";
+export { MemoryJoinStore } from "./adapters/join/memory-store.ts";
