@@ -6,15 +6,16 @@
  * - `runEngagementArc`   = durable run story (steps, park wait, wake continue)
  * - `registerEngagementWorkflow` = thin OW client binding only
  *
- * LIFE-P1 (Model P): when leaf returns Parked, waitForSignal instead of
- * completing the OW run. After wake is received, return parked outcome as
- * interim terminal (LIFE-P2 will rematerialize + engage continue here).
+ * LIFE-P1/P2 (Model P):
+ *   Parked → waitForSignal(wake) → leaf continue (resume sessionRef) → …
+ *   Loop until Settled | Failed (or re-park safety cap).
  *
  * Never openSession / resolve packs here — leaf only.
  */
 
 import {
   engagementWakeSignal,
+  parseWakeSignalData,
 } from "../signals.ts";
 import type {
   EngagementWorkflowInput,
@@ -24,6 +25,9 @@ import {
   runEngagementLeaf,
   type EngagementLeafDeps,
 } from "./engagement.ts";
+
+/** Safety cap on park → wake → continue cycles (fail-closed). */
+export const ENGAGEMENT_ARC_MAX_PARK_LOOPS = 32;
 
 /**
  * Structural step face used by the arc.
@@ -61,24 +65,33 @@ export type RunEngagementArcParams = {
   /** Durable step name for the first leaf (default: engagement-leaf). */
   readonly leafStepName?: string;
   /**
-   * Wake wait step name (default: engagement-wake).
-   * Must be unique within the workflow history.
+   * Base name for wake wait steps (default: engagement-wake).
+   * Iterations append `-${n}` for unique OW step history.
    */
   readonly wakeStepName?: string;
+  /**
+   * Base name for continue leaf steps (default: engagement-continue).
+   * Iterations append `-${n}`.
+   */
+  readonly continueStepName?: string;
+  /** Override park-loop safety cap (default ENGAGEMENT_ARC_MAX_PARK_LOOPS). */
+  readonly maxParkLoops?: number;
 };
 
 /**
  * Run the engagement arc for one OW workflow invocation.
  *
  * Settled | Failed → return immediately (OW run completes).
- * Parked → waitForSignal(wake); on delivery return parked (P1 interim terminal).
- * LIFE-P2 will replace post-wake return with continue leaf.
+ * Parked → waitForSignal → continue leaf (resume) → repeat until terminal.
  */
 export async function runEngagementArc(
   params: RunEngagementArcParams,
 ): Promise<EngagementWorkflowOutput> {
   const leafStepName = params.leafStepName ?? "engagement-leaf";
-  const wakeStepName = params.wakeStepName ?? "engagement-wake";
+  const wakeStepBase = params.wakeStepName ?? "engagement-wake";
+  const continueStepBase = params.continueStepName ?? "engagement-continue";
+  const maxParkLoops = params.maxParkLoops ?? ENGAGEMENT_ARC_MAX_PARK_LOOPS;
+
   const leafDeps: EngagementLeafDeps = {
     factory: params.deps.factory,
     join: params.deps.join,
@@ -86,37 +99,77 @@ export async function runEngagementArc(
     runId: params.runId,
   };
 
-  const outcome = await params.step.run({ name: leafStepName }, async () => {
+  let outcome = await params.step.run({ name: leafStepName }, async () => {
     return runEngagementLeaf(params.input, leafDeps);
   });
 
-  if (outcome.kind !== "parked") {
-    return outcome;
-  }
+  let parkLoop = 0;
+  while (outcome.kind === "parked") {
+    parkLoop += 1;
+    if (parkLoop > maxParkLoops) {
+      return {
+        kind: "failed",
+        sessionRef: outcome.sessionRef,
+        packSnapshotHash: outcome.packSnapshotHash,
+        error: {
+          message: `LIFE-P2: park loop exceeded maxParkLoops=${maxParkLoops}`,
+          code: "PARK_LOOP_EXCEEDED",
+        },
+      };
+    }
 
-  // Model P: do not complete the OW run until wake is delivered.
-  if (typeof params.step.waitForSignal !== "function") {
-    return {
-      kind: "failed",
+    if (typeof params.step.waitForSignal !== "function") {
+      return {
+        kind: "failed",
+        sessionRef: outcome.sessionRef,
+        packSnapshotHash: outcome.packSnapshotHash,
+        error: {
+          message:
+            "LIFE-P1: waitForSignal required on workflow step for Model P park (engagement-arc)",
+          code: "PARK_WAIT_UNAVAILABLE",
+        },
+      };
+    }
+
+    const wakeSignal = engagementWakeSignal(params.runId);
+    // Blocks OW run. Signals are not buffered — client sends after wait is active.
+    const delivery = await params.step.waitForSignal({
+      name: `${wakeStepBase}-${parkLoop}`,
+      signal: wakeSignal,
+    });
+
+    if (delivery === null) {
+      return {
+        kind: "failed",
+        sessionRef: outcome.sessionRef,
+        packSnapshotHash: outcome.packSnapshotHash,
+        error: {
+          message: "LIFE-P2: waitForSignal timed out or returned null",
+          code: "PARK_WAKE_TIMEOUT",
+        },
+      };
+    }
+
+    const wake = parseWakeSignalData(delivery.data);
+    const continueInput: EngagementWorkflowInput = {
+      agentName: params.input.agentName,
+      agentRoot: params.input.agentRoot,
+      definitionId: params.input.definitionId,
+      requestId: params.input.requestId,
+      // Resume same cognitive artifact (D1 continue after park).
       sessionRef: outcome.sessionRef,
-      packSnapshotHash: outcome.packSnapshotHash,
-      error: {
-        message:
-          "LIFE-P1: waitForSignal required on workflow step for Model P park (engagement-arc)",
-        code: "PARK_WAIT_UNAVAILABLE",
-      },
+      task: wake.payloadText,
+      engageMode: wake.mode ?? "continue",
+      // Clear park unless wake payload explicitly re-parks (tests / control plane).
+      parkIntent: wake.parkIntent === true ? true : undefined,
+      parkReason: wake.parkIntent === true ? wake.parkReason : undefined,
     };
+
+    outcome = await params.step.run(
+      { name: `${continueStepBase}-${parkLoop}` },
+      async () => runEngagementLeaf(continueInput, leafDeps),
+    );
   }
 
-  const wakeSignal = engagementWakeSignal(params.runId);
-  // Blocks OW run (sleeping / signal-wait). Signals are not buffered — client
-  // must sendSignal after this wait is active (tests: poll status then wake).
-  await params.step.waitForSignal({
-    name: wakeStepName,
-    signal: wakeSignal,
-  });
-
-  // P1 interim: wake acknowledged → complete with parked payload.
-  // P2: rematerialize(sessionRef) + engage continue instead of return here.
   return outcome;
 }

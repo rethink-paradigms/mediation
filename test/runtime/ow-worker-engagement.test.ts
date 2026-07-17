@@ -177,18 +177,18 @@ describe("OW worker + engagement leaf (S5c, mock mind)", () => {
     assert.equal(result?.error?.code, "CAPABILITY_RESOLVE_FAILED");
   });
 
-  it("LIFE-P1: parkIntent → status not completed until wake signal", async () => {
+  it("LIFE-P1/P2: parkIntent → wait → wake continue → Settled", async () => {
     if (!workerStarted) {
       await worker.start();
       workerStarted = true;
     }
 
     const handle = await runtime.dispatch({
-      agent: { name: "park-s5c-p1", rootDir: FIXTURE_ROOT },
+      agent: { name: "park-s5c-p2", rootDir: FIXTURE_ROOT },
       task: "park on worker",
       parkIntent: true,
-      parkReason: "worker-p1-park",
-      clientRequestId: "s5c-park-p1-1",
+      parkReason: "worker-p2-park",
+      clientRequestId: "s5c-park-p2-1",
     });
 
     // Poll until leaf has parked (join) while OW run still open (Model P).
@@ -196,7 +196,11 @@ describe("OW worker + engagement leaf (S5c, mock mind)", () => {
     let parkedJoin = await join.getByRunId(handle.runId);
     let mid = await runtime.getStatus(handle.runId);
     while (Date.now() < deadline) {
-      if (mid.state === "completed" || mid.state === "failed" || mid.state === "canceled") {
+      if (
+        mid.state === "completed" ||
+        mid.state === "failed" ||
+        mid.state === "canceled"
+      ) {
         break;
       }
       if (parkedJoin?.status === "parked") {
@@ -209,7 +213,6 @@ describe("OW worker + engagement leaf (S5c, mock mind)", () => {
 
     assert.ok(parkedJoin, "join row after leaf park");
     assert.equal(parkedJoin.status, "parked");
-    // Must not have completed before wake.
     assert.notEqual(
       mid.state,
       "completed",
@@ -218,25 +221,32 @@ describe("OW worker + engagement leaf (S5c, mock mind)", () => {
     assert.notEqual(mid.state, "failed", `unexpected fail: ${JSON.stringify(mid)}`);
     assert.notEqual(mid.state, "canceled");
 
-    // Wake — signals are not buffered; wait is active after leaf returned parked.
+    const sessionBefore = parkedJoin.sessionRef;
+
+    // Wake → continue leaf (LIFE-P2) on same runId.
     await runtime.sendSignal(handle.runId, "wake", {
-      payloadText: "p1-interim-ack",
+      payloadText: "human continues",
+      mode: "continue",
     });
 
     const status = await runtime.wait(handle.runId, { timeoutMs: 10_000 });
     assert.equal(
       status.state,
       "completed",
-      `expected completed after wake, got ${JSON.stringify(status)}`,
+      `expected completed after wake continue, got ${JSON.stringify(status)}`,
     );
     const result = status.result as {
       kind?: string;
-      reason?: string;
       sessionRef?: string;
+      packSnapshotHash?: string;
     };
-    // P1 interim: complete with parked payload (P2 will continue on Pi).
-    assert.equal(result?.kind, "parked");
-    assert.equal(result?.reason, "worker-p1-park");
-    assert.equal(typeof result?.sessionRef, "string");
+    assert.equal(result?.kind, "settled");
+    assert.equal(result?.sessionRef, sessionBefore);
+    assert.equal(typeof result?.packSnapshotHash, "string");
+
+    const settledJoin = await join.getByRunId(handle.runId);
+    assert.ok(settledJoin);
+    assert.equal(settledJoin.status, "settled");
+    assert.equal(settledJoin.sessionRef, sessionBefore);
   });
 });
