@@ -1,0 +1,46 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["import", "typescript", "unicorn", "promise", "jest", "oxc"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "pedantic": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "oxc/no-async-await": "off",
+    "oxc/no-optional-chaining": "off",
+    "oxc/no-rest-spread-properties": "off",
+    "import/no-cycle": "error",
+    "jest/no-disabled-tests": "error",
+    "jest/no-focused-tests": "error",
+    "jest/no-conditional-in-test": "off",
+    "eslint/max-lines-per-function": "off",
+    "eslint/require-await": "off",
+    "eslint/no-negated-condition": "off",
+    "unicorn/no-negated-condition": "off",
+    "eslint/no-await-in-loop": "off",
+    "unicorn/no-empty-file": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-useless-spread": "off",
+    "unicorn/no-immediate-mutation": "off",
+    "import/max-dependencies": "off",
+    "eslint/max-lines": "off",
+    "eslint/max-depth": "off",
+    "eslint/max-classes-per-file": "off",
+    "unicorn/no-array-callback-reference": "off",
+    "typescript/no-this-alias": "off",
+    "unicorn/no-this-assignment": "off",
+    "unicorn/explicit-length-check": "off"
+  },
+  "overrides": [
+    {
+      "files": ["test/**/*.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-non-null-assertion": "off",
+        "import/no-cycle": "off"
+      }
+    }
+  ]
+}

@@ -7,7 +7,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { createYamlDefinitionLoader } from "../../src/adapters/definition/yaml-definition-loader.ts";
 import { createLocalMediation } from "../../src/adapters/compose.ts";
@@ -22,7 +21,7 @@ import { parseArgs, printHelp, runCli } from "../../src/surfaces/cli.ts";
 import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
 import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const DEF_FIXTURE = path.resolve(HERE, "../../fixtures/definition/case-basic");
 const PACK_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 
@@ -89,7 +88,7 @@ describe("Mediation façade (S7)", () => {
           agent: { name: "x", rootDir: "/tmp" },
           task: "nope",
         }),
-      /no RuntimePort/,
+      /no RuntimePort/u,
     );
   });
 

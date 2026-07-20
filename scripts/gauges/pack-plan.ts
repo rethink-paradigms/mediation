@@ -7,13 +7,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { packPlanHash } from "../../src/adapters/packs/pack-snapshot.ts";
 import { packLoadPlanFromFsSpecs } from "../../test/helpers/fs-pack-plan.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const PKG_ROOT = path.resolve(HERE, "../..");
+const PKG_ROOT = path.resolve(import.meta.dirname, "../..");
 const FIXTURES = path.join(PKG_ROOT, "fixtures", "packs");
 
 export type PackPlanGaugeRow = {
@@ -104,8 +102,9 @@ function main(): void {
 
 const isMain =
   process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  path.resolve(process.argv[1]) === import.meta.filename;
 
 if (isMain) {
   main();
 }
+

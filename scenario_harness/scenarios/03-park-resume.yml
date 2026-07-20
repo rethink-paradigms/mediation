@@ -1,0 +1,27 @@
+name: park-resume-observation
+description: |
+  Observe parking a session and resuming it.
+
+resources:
+  - type: capability-store
+    as: my-store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: definition
+    as: my-def
+    id: case-basic
+    name: case-basic
+    model: deepseek/deepseek-v4-flash
+
+  - type: presence
+    as: my-presence
+    definition: my-def
+    mode: headless
+    then:
+      - engage-with-park
+      - resume
+    text: "please park yourself"
+    resumeToken: "{{ op-4.resumeToken }}"
+
+cleanup: true

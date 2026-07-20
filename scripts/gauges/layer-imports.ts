@@ -8,22 +8,20 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PKG_ROOT = path.resolve(__dirname, "../..");
+const PKG_ROOT = path.resolve(import.meta.dirname, "../..");
 const SRC = path.join(PKG_ROOT, "src");
 
 const FORBIDDEN = [
-  /from\s+["']pi-coding-agent(?:\/[^"']*)?["']/,
-  /from\s+["']@earendil-works\/[^"']+["']/,
-  /from\s+["']openworkflow(?:\/[^"']*)?["']/,
-  /require\(\s*["']pi-coding-agent(?:\/[^"']*)?["']\s*\)/,
-  /require\(\s*["']@earendil-works\/[^"']+["']\s*\)/,
-  /require\(\s*["']openworkflow(?:\/[^"']*)?["']\s*\)/,
-  /import\(\s*["']pi-coding-agent(?:\/[^"']*)?["']\s*\)/,
-  /import\(\s*["']@earendil-works\/[^"']+["']\s*\)/,
-  /import\(\s*["']openworkflow(?:\/[^"']*)?["']\s*\)/,
+  /from\s+["']pi-coding-agent(?:\/[^"']*)?["']/u,
+  /from\s+["']@earendil-works\/[^"']+["']/u,
+  /from\s+["']openworkflow(?:\/[^"']*)?["']/u,
+  /require\(\s*["']pi-coding-agent(?:\/[^"']*)?["']\s*\)/u,
+  /require\(\s*["']@earendil-works\/[^"']+["']\s*\)/u,
+  /require\(\s*["']openworkflow(?:\/[^"']*)?["']\s*\)/u,
+  /import\(\s*["']pi-coding-agent(?:\/[^"']*)?["']\s*\)/u,
+  /import\(\s*["']@earendil-works\/[^"']+["']\s*\)/u,
+  /import\(\s*["']openworkflow(?:\/[^"']*)?["']\s*\)/u,
 ];
 
 const LAYERS = ["domain", "ports", "app"] as const;
@@ -33,7 +31,7 @@ function walkTs(dir: string, out: string[] = []): string[] {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, ent.name);
     if (ent.isDirectory()) walkTs(p, out);
-    else if (ent.isFile() && /\.(ts|tsx|mts|cts|js|mjs|cjs)$/.test(ent.name)) {
+    else if (ent.isFile() && /\.(ts|tsx|mts|cts|js|mjs|cjs)$/u.test(ent.name)) {
       out.push(p);
     }
   }
@@ -52,7 +50,7 @@ export function measureLayerImports(): LayerImportGauge {
     const root = path.join(SRC, layer);
     for (const file of walkTs(root)) {
       const text = fs.readFileSync(file, "utf8");
-      const lines = text.split(/\r?\n/);
+      const lines = text.split(/\r?\n/u);
       lines.forEach((line, i) => {
         for (const re of FORBIDDEN) {
           if (re.test(line)) {
@@ -85,3 +83,4 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith
     process.exitCode = 1;
   }
 }
+

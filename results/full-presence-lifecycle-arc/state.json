@@ -1,0 +1,249 @@
+{
+  "scenario": "Full Presence Lifecycle Arc",
+  "description": "Tests complete state machine traversal (idle -> parked -> resume -> settled(idle) -> disposed)",
+  "plan": {
+    "scenario": "Full Presence Lifecycle Arc",
+    "description": "Tests complete state machine traversal (idle -> parked -> resume -> settled(idle) -> disposed)",
+    "operations": [
+      {
+        "id": "op-1",
+        "type": "capability-store",
+        "resource": "store",
+        "capability": "create",
+        "params": {
+          "variant": "fs",
+          "projectRoot": "fixtures/packs/case-basic"
+        },
+        "captures": [
+          "kind"
+        ]
+      },
+      {
+        "id": "op-2",
+        "type": "definition",
+        "resource": "def",
+        "capability": "create",
+        "params": {
+          "id": "case-basic",
+          "name": "case-basic",
+          "model": "deepseek/deepseek-v4-flash"
+        },
+        "captures": [
+          "id",
+          "name"
+        ]
+      },
+      {
+        "id": "op-3",
+        "type": "presence",
+        "resource": "p1",
+        "capability": "create",
+        "params": {
+          "definition": "def"
+        },
+        "captures": [
+          "id",
+          "sessionRef",
+          "status"
+        ]
+      },
+      {
+        "id": "op-4",
+        "type": "presence",
+        "resource": "p1",
+        "capability": "engage-with-park",
+        "params": {
+          "presenceId": "{{ op-3.id }}",
+          "text": "park test",
+          "parkIntent": true,
+          "assert": "{{ assert }}"
+        },
+        "captures": [
+          "kind",
+          "sessionRef",
+          "resumeToken",
+          "reason"
+        ]
+      },
+      {
+        "id": "op-5",
+        "type": "presence",
+        "resource": "p1",
+        "capability": "resume",
+        "params": {
+          "presenceId": "{{ op-3.id }}",
+          "text": "park test",
+          "resumeToken": "{{ op-4.resumeToken }}"
+        },
+        "captures": [
+          "kind",
+          "sessionRef"
+        ]
+      }
+    ],
+    "cleanup": [
+      {
+        "id": "cleanup-1",
+        "type": "presence",
+        "resource": "p1",
+        "capability": "dispose",
+        "params": {
+          "presenceId": "{{ op-3.id }}"
+        },
+        "captures": [
+          "success"
+        ],
+        "precondition": "op-3 executed"
+      }
+    ]
+  },
+  "observations": [
+    {
+      "id": "op-1",
+      "capability": "capability-store:create",
+      "status": "ANOMALY",
+      "duration": 1,
+      "captures": {
+        "kind": "fs"
+      },
+      "rawOutput": {
+        "kind": "fs"
+      },
+      "anomalies": [
+        {
+          "field": "$.kind",
+          "expected": "memory",
+          "actual": "fs",
+          "message": "Soft expectation mismatch at $.kind: expected \"memory\", got \"fs\""
+        }
+      ],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "ready",
+      "startedAt": "2026-07-20T18:02:18.768Z",
+      "completedAt": "2026-07-20T18:02:18.768Z"
+    },
+    {
+      "id": "op-2",
+      "capability": "definition:create",
+      "status": "PASSED",
+      "duration": 9,
+      "captures": {
+        "id": "case-basic",
+        "name": "case-basic"
+      },
+      "rawOutput": {
+        "id": "case-basic",
+        "name": "case-basic"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "loaded",
+      "startedAt": "2026-07-20T18:02:18.769Z",
+      "completedAt": "2026-07-20T18:02:18.778Z"
+    },
+    {
+      "id": "op-3",
+      "capability": "presence:create",
+      "status": "PASSED",
+      "duration": 11,
+      "captures": {
+        "id": "case-basic#1",
+        "sessionRef": "mock-presence-session",
+        "status": "idle"
+      },
+      "rawOutput": {
+        "id": "case-basic#1",
+        "sessionRef": "mock-presence-session",
+        "status": "idle"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "cold",
+      "stateAfter": "idle",
+      "startedAt": "2026-07-20T18:02:18.778Z",
+      "completedAt": "2026-07-20T18:02:18.789Z"
+    },
+    {
+      "id": "op-4",
+      "capability": "presence:engage-with-park",
+      "status": "PASSED",
+      "duration": 0,
+      "captures": {
+        "kind": "parked",
+        "sessionRef": "mock-presence-session",
+        "resumeToken": "park:mock-presence-session:mrtj80f9",
+        "reason": "park_intent"
+      },
+      "rawOutput": {
+        "kind": "parked",
+        "sessionRef": "mock-presence-session",
+        "reason": "park_intent",
+        "resumeToken": "park:mock-presence-session:mrtj80f9",
+        "payload": {
+          "text": "park test",
+          "mode": "prompt"
+        }
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "idle",
+      "stateAfter": "parked",
+      "startedAt": "2026-07-20T18:02:18.789Z",
+      "completedAt": "2026-07-20T18:02:18.789Z"
+    },
+    {
+      "id": "op-5",
+      "capability": "presence:resume",
+      "status": "PASSED",
+      "duration": 0,
+      "captures": {
+        "kind": "settled",
+        "sessionRef": "mock-presence-session"
+      },
+      "rawOutput": {
+        "kind": "settled",
+        "sessionRef": "mock-presence-session"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "parked",
+      "stateAfter": "idle",
+      "startedAt": "2026-07-20T18:02:18.789Z",
+      "completedAt": "2026-07-20T18:02:18.789Z"
+    }
+  ],
+  "cleanupObservations": [],
+  "annotations": [],
+  "captures": {
+    "op-1": {
+      "kind": "fs"
+    },
+    "op-2": {
+      "id": "case-basic",
+      "name": "case-basic"
+    },
+    "op-3": {
+      "id": "case-basic#1",
+      "sessionRef": "mock-presence-session",
+      "status": "idle"
+    },
+    "op-4": {
+      "kind": "parked",
+      "sessionRef": "mock-presence-session",
+      "resumeToken": "park:mock-presence-session:mrtj80f9",
+      "reason": "park_intent"
+    },
+    "op-5": {
+      "kind": "settled",
+      "sessionRef": "mock-presence-session"
+    }
+  },
+  "currentOpIndex": 5,
+  "cleanupIndex": 0,
+  "auth": null,
+  "status": "completed",
+  "startedAt": "2026-07-20T18:02:18.113Z",
+  "updatedAt": "2026-07-20T18:02:18.789Z"
+}

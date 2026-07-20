@@ -9,7 +9,6 @@ import {
   ENGAGEMENT_WAKE_KIND,
   engagementSignalName,
   engagementWakeSignal,
-  isWakeSignalData,
   parseWakeSignalData,
 } from "../../src/adapters/openworkflow/signals.ts";
 
@@ -26,8 +25,6 @@ describe("engagement signals (scaffold)", () => {
   });
 
   it("parses WakeSignalData and string shorthand", () => {
-    assert.equal(isWakeSignalData({ payloadText: "hi" }), true);
-    assert.equal(isWakeSignalData({}), false);
     assert.deepEqual(parseWakeSignalData({ payloadText: "go", mode: "continue" }), {
       payloadText: "go",
       mode: "continue",
@@ -39,3 +36,5 @@ describe("engagement signals (scaffold)", () => {
     assert.equal(parseWakeSignalData(null).payloadText, "");
   });
 });
+
+

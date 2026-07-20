@@ -1,0 +1,124 @@
+name: presence
+description: |
+  An AgentPresence in the mediation layer.
+  Lifecycle states: cold -> warming -> idle -> engaging -> parked/disposed
+
+states:
+  cold: Initial state, not materialized
+  warming: Materializing session and resolving capabilities
+  idle: Session open, ready for input
+  engaging: Actively running thinking/loop
+  parked: Suspended, awaiting steering signal
+  disposed: Cleaned up and resources released
+
+capabilities:
+  create:
+    from: cold
+    to: idle
+    description: Materialize an AgentPresence from an AgentDefinition
+    parameters:
+      definition:
+        required: true
+        description: Loaded definition ID reference
+      mode:
+        required: false
+        default: headless
+        description: headless or attached
+    captures:
+      id: "$.id"
+      sessionRef: "$.sessionRef"
+      status: "$.status"
+    action:
+      method: materializePresence
+    assert:
+      body:
+        "$.status": "idle"
+
+  engage:
+    from: idle
+    to: idle
+    description: Send prompt to presence and wait for settled
+    parameters:
+      presenceId:
+        required: true
+        description: Presence session ID reference
+      text:
+        required: true
+        description: Engagement prompt text
+      parkIntent:
+        required: false
+        default: false
+        description: Request park on idle
+    captures:
+      kind: "$.kind"
+      sessionRef: "$.sessionRef"
+      result: "$.result"
+    action:
+      method: engagePresence
+    assert:
+      body:
+        "$.kind": "settled"
+
+  engage-with-park:
+    from: idle
+    to: parked
+    description: Send prompt requesting suspension/parking
+    parameters:
+      presenceId:
+        required: true
+      text:
+        required: true
+      parkIntent:
+        required: false
+        default: true
+      assert:
+        type: object
+        properties:
+          errorCode:
+            type: string
+            description: Expected error code from the engine
+          status:
+            required: false
+    captures:
+      kind: "$.kind"
+      sessionRef: "$.sessionRef"
+      resumeToken: "$.resumeToken"
+      reason: "$.reason"
+    action:
+      method: engagePresence
+    assert:
+      body:
+        "$.kind": "parked"
+
+  resume:
+    from: parked
+    to: idle
+    description: Resume parked presence session using steering token
+    parameters:
+      presenceId:
+        required: true
+      text:
+        required: true
+        description: Follow-up text for resume
+      resumeToken:
+        required: true
+    captures:
+      kind: "$.kind"
+      sessionRef: "$.sessionRef"
+    action:
+      method: resumePresence
+    assert:
+      body:
+        "$.kind": "settled"
+
+  dispose:
+    from: idle
+    to: disposed
+    description: Dispose agent presence
+    parameters:
+      presenceId:
+        required: true
+    captures:
+      success: "$.success"
+    action:
+      method: disposePresence

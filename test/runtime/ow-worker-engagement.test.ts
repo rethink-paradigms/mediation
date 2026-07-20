@@ -7,7 +7,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { after, describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { OpenWorkflow } from "openworkflow";
 import { BackendSqlite } from "openworkflow/sqlite";
@@ -24,7 +23,7 @@ import { asSessionRef } from "../../src/domain/presence.ts";
 import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
 import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 
 function makeMockFactory(sessionRef = "mock-session-s5c"): DefaultPresenceFactory {
@@ -206,7 +205,7 @@ describe("OW worker + engagement leaf (S5c, mock mind)", () => {
       if (parkedJoin?.status === "parked") {
         break;
       }
-      await new Promise((r) => setTimeout(r, 20));
+      await new Promise((r) => { setTimeout(r, 20); });
       parkedJoin = await join.getByRunId(handle.runId);
       mid = await runtime.getStatus(handle.runId);
     }

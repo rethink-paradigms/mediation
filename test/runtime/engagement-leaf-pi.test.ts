@@ -6,7 +6,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { runEngagementLeaf } from "../../src/adapters/openworkflow/workflows/engagement.ts";
@@ -17,7 +16,7 @@ import { asRunId } from "../../src/domain/engagement.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { FakePiSession } from "../pi/fake-session.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const NO_HOME = path.join(FIXTURE_ROOT, "_no_home");
 

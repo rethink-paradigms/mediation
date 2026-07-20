@@ -5,7 +5,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
@@ -21,7 +20,7 @@ import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import { agentDefForPacks } from "../helpers/agent-def.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 
 function makeFactory(sessionRef?: string): DefaultPresenceFactory {

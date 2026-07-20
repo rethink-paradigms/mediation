@@ -6,7 +6,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
@@ -30,7 +29,7 @@ import type {
 import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
 import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const NO_HOME = path.join(FIXTURE_ROOT, "_no_home");
 
@@ -216,7 +215,7 @@ describe("ABS-B3 dispatch recipe", () => {
             task: "nope",
           },
         ),
-      /no RuntimePort/,
+      /no RuntimePort/u,
     );
   });
 });
@@ -257,7 +256,7 @@ describe("ABS-B3 plan recipe", () => {
             ],
           },
         ),
-      /no RuntimePort/,
+      /no RuntimePort/u,
     );
   });
 });

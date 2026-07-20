@@ -5,10 +5,12 @@
  *   layer_import_violations !== 0 → exit 1
  *   second_door_count !== 0 → exit 1
  *   spawn_public_export_count !== 0 → exit 1
+ *   export_integrity !== 0 → exit 1 (dead re-exports in src/index.ts)
  * Measurement errors also fail the process (agents get hard feedback).
  */
 
 import { measureExportSurface } from "./export-surface.ts";
+import { measureExportIntegrity } from "./export-integrity.ts";
 import { measureLayerImports } from "./layer-imports.ts";
 import { runPackPlanGauges } from "./pack-plan.ts";
 import { measureSecondDoor } from "./second-door.ts";
@@ -66,6 +68,28 @@ function main(): void {
   } catch (e) {
     console.error(
       `public_export_surface=error ${e instanceof Error ? e.message : e}`,
+    );
+    failed = true;
+  }
+
+  // --- Export integrity: no dead re-exports in src/index.ts ---
+  try {
+    const integrity = measureExportIntegrity();
+    console.log(`export_integrity=${integrity.value}`);
+    console.log(`checked_files=${integrity.checkedFiles}`);
+    console.log(`checked_symbols=${integrity.checkedSymbols}`);
+    for (const d of integrity.deadExports) {
+      console.log(`  dead-export: ${d.symbol} (from ${d.sourceFile}, index.ts:${d.indexLine})`);
+    }
+    if (integrity.value !== 0) {
+      console.error(
+        `FAIL: export_integrity=${integrity.value} dead re-exports found (must be 0)`,
+      );
+      failed = true;
+    }
+  } catch (e) {
+    console.error(
+      `export_integrity=error ${e instanceof Error ? e.message : e}`,
     );
     failed = true;
   }

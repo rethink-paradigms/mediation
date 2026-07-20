@@ -6,7 +6,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   createFsCapabilityStore,
@@ -16,7 +15,7 @@ import {
 import { asCapabilityId } from "../../src/domain/capability.ts";
 import type { CapabilityStore } from "../../src/ports/capability-store.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const NO_HOME = path.join(FIXTURE_ROOT, "_no_home");
 

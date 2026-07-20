@@ -15,7 +15,7 @@ describe("legacy spawnEngage (private, fail-closed)", () => {
       (err: unknown) => {
         assert.ok(err instanceof MediationError);
         assert.equal(err.code, "POLICY_VIOLATION");
-        assert.match(err.message, /SPAWN_DISABLED/);
+        assert.match(err.message, /SPAWN_DISABLED/u);
         assert.deepEqual(err.details, { reason: "SPAWN_DISABLED" });
         return true;
       },

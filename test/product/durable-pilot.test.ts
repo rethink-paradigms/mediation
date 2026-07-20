@@ -8,7 +8,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   createHostedMediation,
@@ -23,7 +22,7 @@ import { SqliteJoinStore } from "../../src/adapters/join/sqlite-store.ts";
 import { capabilitySpecFromDefinition } from "../../src/app/factory.ts";
 import { agentDefForPacks } from "../helpers/agent-def.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const COMPANY_ROOT = path.resolve(HERE, "../../../../");
 const CODING_AGENT_ROOT = path.join(COMPANY_ROOT, "agents", "coding-agent");

@@ -49,6 +49,10 @@ function resolveRunId(deps: EngagementLeafDeps, input: EngagementWorkflowInput):
   return asRunId(`local-engagement-${localRunSeq}`);
 }
 
+function now(): string {
+  return new Date().toISOString();
+}
+
 /**
  * Pure Gamma leaf: materialize + join + engage + outcome.
  * Callable from unit tests without an OW worker; later wrapped by defineWorkflow.
@@ -92,8 +96,6 @@ export async function runEngagementLeaf(
 
   sessionRefStr = presence.sessionRef;
   packHash = presence.packSnapshot.planHash;
-
-  const now = () => new Date().toISOString();
 
   try {
     await deps.join.put({
@@ -175,3 +177,6 @@ export async function runEngagementLeaf(
     }
   }
 }
+
+
+

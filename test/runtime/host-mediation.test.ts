@@ -8,12 +8,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { after, describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { createHostedMediation } from "../../src/adapters/compose.ts";
 import { agentDefForPacks } from "../helpers/agent-def.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const DEF_FIXTURE = path.resolve(HERE, "../../fixtures/definition/case-basic");
 

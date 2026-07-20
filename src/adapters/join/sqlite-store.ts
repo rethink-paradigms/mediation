@@ -54,7 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_engagement_join_session
 function rowToRecord(row: JoinRow): EngagementRecord {
   const packSnapshot = JSON.parse(row.pack_snapshot_json) as PackSnapshot;
   const parked =
-    row.parked_json == null || row.parked_json === ""
+    row.parked_json === null || row.parked_json === ""
       ? undefined
       : (JSON.parse(row.parked_json) as {
           reason: string;
@@ -165,3 +165,4 @@ export class SqliteJoinStore implements JoinStore {
     this.db.close();
   }
 }
+

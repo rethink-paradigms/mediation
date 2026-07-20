@@ -1,0 +1,16 @@
+name: dispatch-workflow-observation
+description: |
+  Observe workflow dispatch and waiting until status completed/parked.
+
+resources:
+  - type: engagement
+    as: my-run
+    agentName: case-basic
+    rootDir: fixtures/definition/case-basic
+    task: "test dispatch"
+    parkIntent: false
+    until: completed
+    timeout: 30
+    interval: 5
+
+cleanup: false

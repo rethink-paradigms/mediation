@@ -12,7 +12,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { runEngagementLeaf } from "../../src/adapters/openworkflow/workflows/engagement.ts";
@@ -21,7 +20,7 @@ import type { AgentDefinition } from "../../src/domain/definition.ts";
 import { asRunId } from "../../src/domain/engagement.ts";
 
 const LIVE = process.env.MEDIATION_LIVE_PI === "1";
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const PKG_ROOT = path.resolve(HERE, "../..");
 
 function liveDefinition(rootDir: string): AgentDefinition {

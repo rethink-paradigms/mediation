@@ -1,0 +1,143 @@
+{
+  "scenario": "Error Boundary - Capability Resolution Failure",
+  "description": "Fail-closed architecture gate triggers when capability resolution fails",
+  "plan": {
+    "scenario": "Error Boundary - Capability Resolution Failure",
+    "description": "Fail-closed architecture gate triggers when capability resolution fails",
+    "operations": [
+      {
+        "id": "op-1",
+        "type": "capability-store",
+        "resource": "store",
+        "capability": "create",
+        "params": {
+          "variant": "memory"
+        },
+        "captures": [
+          "kind"
+        ]
+      },
+      {
+        "id": "op-2",
+        "type": "definition",
+        "resource": "def",
+        "capability": "create",
+        "params": {
+          "id": "fake-agent",
+          "name": "fake-agent",
+          "model": "dummy"
+        },
+        "captures": [
+          "id",
+          "name"
+        ]
+      },
+      {
+        "id": "op-3",
+        "type": "presence",
+        "resource": "p1",
+        "capability": "create",
+        "params": {
+          "definition": "def"
+        },
+        "captures": [
+          "id",
+          "sessionRef",
+          "status"
+        ],
+        "assert": {
+          "errorCode": "CAPABILITY_RESOLVE_FAILED"
+        }
+      }
+    ],
+    "cleanup": [
+      {
+        "id": "cleanup-1",
+        "type": "presence",
+        "resource": "p1",
+        "capability": "dispose",
+        "params": {
+          "presenceId": "{{ op-3.id }}"
+        },
+        "captures": [
+          "success"
+        ],
+        "precondition": "op-3 executed"
+      }
+    ]
+  },
+  "observations": [
+    {
+      "id": "op-1",
+      "capability": "capability-store:create",
+      "status": "PASSED",
+      "duration": 2,
+      "captures": {
+        "kind": "memory"
+      },
+      "rawOutput": {
+        "kind": "memory"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "ready",
+      "startedAt": "2026-07-20T18:01:11.896Z",
+      "completedAt": "2026-07-20T18:01:11.897Z"
+    },
+    {
+      "id": "op-2",
+      "capability": "definition:create",
+      "status": "PASSED",
+      "duration": 9,
+      "captures": {
+        "id": "fake-agent",
+        "name": "fake-agent"
+      },
+      "rawOutput": {
+        "id": "fake-agent",
+        "name": "fake-agent"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "loaded",
+      "startedAt": "2026-07-20T18:01:11.898Z",
+      "completedAt": "2026-07-20T18:01:11.907Z"
+    },
+    {
+      "id": "op-3",
+      "capability": "presence:create",
+      "status": "PASSED",
+      "duration": 1,
+      "captures": {},
+      "rawOutput": null,
+      "anomalies": [],
+      "annotations": [],
+      "error": "Capability resolve failed for agent \"fake-agent\" (ok=false)",
+      "errorCode": "CAPABILITY_RESOLVE_FAILED",
+      "stateBefore": "cold",
+      "stateAfter": "idle",
+      "startedAt": "2026-07-20T18:01:11.907Z",
+      "completedAt": "2026-07-20T18:01:11.908Z"
+    }
+  ],
+  "cleanupObservations": [],
+  "annotations": [],
+  "captures": {
+    "op-1": {
+      "kind": "memory"
+    },
+    "op-2": {
+      "id": "fake-agent",
+      "name": "fake-agent"
+    },
+    "op-3": {}
+  },
+  "currentOpIndex": 3,
+  "cleanupIndex": 0,
+  "auth": null,
+  "status": "completed",
+  "startedAt": "2026-07-20T18:01:11.093Z",
+  "updatedAt": "2026-07-20T18:01:11.908Z"
+}

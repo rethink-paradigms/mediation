@@ -1,0 +1,16 @@
+name: Error Boundary - Invalid Agent Definition
+description: Fail-closed architecture gate triggers when definition is invalid (syntactically)
+
+resources:
+  - type: capability-store
+    as: store
+    variant: memory
+
+  - type: definition
+    as: bad-def
+    id: bad-syntax
+    name: bad-syntax
+    model: dummy
+    rootDir: fixtures/definition/bad-syntax
+    assert:
+      errorCode: DEFINITION_INVALID

@@ -1,0 +1,114 @@
+{
+  "scenario": "dispatch-workflow-observation",
+  "description": "Observe workflow dispatch and waiting until status completed/parked.\n",
+  "plan": {
+    "scenario": "dispatch-workflow-observation",
+    "description": "Observe workflow dispatch and waiting until status completed/parked.\n",
+    "operations": [
+      {
+        "id": "op-1",
+        "type": "engagement",
+        "resource": "my-run",
+        "capability": "create",
+        "params": {
+          "agentName": "case-basic",
+          "rootDir": "fixtures/definition/case-basic",
+          "task": "test dispatch",
+          "parkIntent": false
+        },
+        "captures": [
+          "runId"
+        ]
+      },
+      {
+        "id": "op-2",
+        "type": "engagement",
+        "resource": "my-run",
+        "capability": "wait-until",
+        "params": {
+          "target": "completed",
+          "timeout": 30,
+          "interval": 5,
+          "runId": "{{ op-1.runId }}"
+        },
+        "captures": [
+          "state"
+        ],
+        "poll": {
+          "field": "$.state",
+          "until": "completed",
+          "interval": 5,
+          "timeout": 30
+        }
+      }
+    ],
+    "cleanup": []
+  },
+  "observations": [
+    {
+      "id": "op-1",
+      "capability": "engagement:create",
+      "status": "PASSED",
+      "duration": 2,
+      "captures": {
+        "runId": "run-8kvzw9n"
+      },
+      "rawOutput": {
+        "runId": "run-8kvzw9n"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "running",
+      "startedAt": "2026-07-20T18:00:56.356Z",
+      "completedAt": "2026-07-20T18:00:56.357Z"
+    },
+    {
+      "id": "op-2",
+      "capability": "engagement:wait-until",
+      "status": "PASSED",
+      "duration": 0,
+      "captures": {
+        "state": "completed"
+      },
+      "rawOutput": {
+        "state": "completed",
+        "result": {
+          "status": "settled"
+        }
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "running",
+      "stateAfter": "{{ target }}",
+      "startedAt": "2026-07-20T18:00:56.358Z",
+      "completedAt": "2026-07-20T18:00:56.358Z",
+      "polls": [
+        {
+          "index": 1,
+          "field": "$.state",
+          "value": "completed",
+          "target": "completed",
+          "matched": true,
+          "at": "2026-07-20T18:00:56.358Z"
+        }
+      ]
+    }
+  ],
+  "cleanupObservations": [],
+  "annotations": [],
+  "captures": {
+    "op-1": {
+      "runId": "run-8kvzw9n"
+    },
+    "op-2": {
+      "state": "completed"
+    }
+  },
+  "currentOpIndex": 2,
+  "cleanupIndex": 0,
+  "auth": null,
+  "status": "completed",
+  "startedAt": "2026-07-20T18:00:55.612Z",
+  "updatedAt": "2026-07-20T18:00:56.359Z"
+}

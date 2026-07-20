@@ -53,7 +53,8 @@ export type RuntimeStatus =
   | { readonly state: "running"; readonly parked?: boolean }
   | { readonly state: "completed"; readonly result?: unknown }
   | { readonly state: "failed"; readonly error?: unknown }
-  | { readonly state: "canceled" };
+  | { readonly state: "canceled" }
+  | { readonly state: "unknown"; readonly originalStatus: string; readonly error: { readonly message: string } };
 
 export interface RuntimePort {
   dispatch(input: DispatchInput): Promise<DispatchHandle>;
@@ -64,3 +65,5 @@ export interface RuntimePort {
   /** Optional: wait for terminal status (surfaces that block). */
   wait(runId: RunId, opts?: { timeoutMs?: number }): Promise<RuntimeStatus>;
 }
+
+

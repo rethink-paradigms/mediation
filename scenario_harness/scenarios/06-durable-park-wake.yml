@@ -1,0 +1,20 @@
+name: Durable Workflow Park Wake Complete
+description: The full Model P durability loop through the workflow engine
+resources:
+  - type: capability-store
+    as: store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+    
+  - type: engagement
+    as: dispatch-1
+    agentName: case-basic
+    rootDir: fixtures/definition/case-basic
+    task: "do something that parks"
+    parkIntent: true
+    text: "wake up"
+    target: running
+    until: completed
+    then:
+      - wait-until
+      - wake

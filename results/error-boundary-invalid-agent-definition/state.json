@@ -1,0 +1,92 @@
+{
+  "scenario": "Error Boundary - Invalid Agent Definition",
+  "description": "Fail-closed architecture gate triggers when definition is invalid (syntactically)",
+  "plan": {
+    "scenario": "Error Boundary - Invalid Agent Definition",
+    "description": "Fail-closed architecture gate triggers when definition is invalid (syntactically)",
+    "operations": [
+      {
+        "id": "op-1",
+        "type": "capability-store",
+        "resource": "store",
+        "capability": "create",
+        "params": {
+          "variant": "memory"
+        },
+        "captures": [
+          "kind"
+        ]
+      },
+      {
+        "id": "op-2",
+        "type": "definition",
+        "resource": "bad-def",
+        "capability": "create",
+        "params": {
+          "id": "bad-syntax",
+          "name": "bad-syntax",
+          "model": "dummy",
+          "rootDir": "fixtures/definition/bad-syntax"
+        },
+        "captures": [
+          "id",
+          "name"
+        ],
+        "assert": {
+          "errorCode": "DEFINITION_INVALID"
+        }
+      }
+    ],
+    "cleanup": []
+  },
+  "observations": [
+    {
+      "id": "op-1",
+      "capability": "capability-store:create",
+      "status": "PASSED",
+      "duration": 1,
+      "captures": {
+        "kind": "memory"
+      },
+      "rawOutput": {
+        "kind": "memory"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "ready",
+      "startedAt": "2026-07-20T18:01:09.572Z",
+      "completedAt": "2026-07-20T18:01:09.572Z"
+    },
+    {
+      "id": "op-2",
+      "capability": "definition:create",
+      "status": "PASSED",
+      "duration": 5,
+      "captures": {},
+      "rawOutput": null,
+      "anomalies": [],
+      "annotations": [],
+      "error": "agent.yaml parse error: Nested mappings are not allowed in compact mappings at line 1, column 10:\n\ninvalid: yaml: : : : {\n         ^\n",
+      "errorCode": "DEFINITION_INVALID",
+      "stateBefore": "absent",
+      "stateAfter": "loaded",
+      "startedAt": "2026-07-20T18:01:09.573Z",
+      "completedAt": "2026-07-20T18:01:09.578Z"
+    }
+  ],
+  "cleanupObservations": [],
+  "annotations": [],
+  "captures": {
+    "op-1": {
+      "kind": "memory"
+    },
+    "op-2": {}
+  },
+  "currentOpIndex": 2,
+  "cleanupIndex": 0,
+  "auth": null,
+  "status": "completed",
+  "startedAt": "2026-07-20T18:01:08.834Z",
+  "updatedAt": "2026-07-20T18:01:09.578Z"
+}

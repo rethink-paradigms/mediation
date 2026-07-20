@@ -1,0 +1,25 @@
+name: Full Presence Lifecycle Arc
+description: Tests complete state machine traversal (idle -> parked -> resume -> settled(idle) -> disposed)
+resources:
+  - type: capability-store
+    as: store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: definition
+    as: def
+    id: case-basic
+    name: case-basic
+    model: deepseek/deepseek-v4-flash
+    store: store
+
+  - type: presence
+    as: p1
+    definition: def
+    cwd: /tmp/test
+    text: "park test"
+    target: parked
+    then:
+      - engage-with-park
+      - resume
+cleanup: true

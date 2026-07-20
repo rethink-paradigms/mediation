@@ -8,7 +8,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
 import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
@@ -26,7 +25,7 @@ import { MediationError } from "../../src/domain/errors.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 import type { CapabilityArtifact } from "../../src/ports/capability-store.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const NO_HOME = path.join(FIXTURE_ROOT, "_no_home");
 
@@ -141,7 +140,7 @@ describe("DefaultPresenceFactory + CapabilityResolver (CUT)", () => {
       (err: unknown) => {
         assert.ok(err instanceof MediationError);
         assert.equal(err.code, "CAPABILITY_RESOLVE_FAILED");
-        assert.match(err.message, /Capability resolve failed/);
+        assert.match(err.message, /Capability resolve failed/u);
         return true;
       },
     );

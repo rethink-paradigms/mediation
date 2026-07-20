@@ -8,7 +8,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { createHostedMediation } from "../../src/adapters/compose.ts";
 import { createMediationSurface } from "../../src/adapters/surface/mediation-surface.ts";
@@ -20,7 +19,7 @@ import { wake as wakeRecipe } from "../../src/app/recipes/wake.ts";
 import type { RecipeContext } from "../../src/app/recipes/types.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 
 async function pollJoinParked(
@@ -36,7 +35,7 @@ async function pollJoinParked(
     }
     const j = await get();
     if (j?.status === "parked") return;
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => { setTimeout(r, 20); });
   }
   throw new Error("timeout waiting for join parked");
 }
@@ -206,7 +205,7 @@ describe("LIFE runtime scenarios (hosted Mediation, mock mind)", () => {
       st.state !== "completed" &&
       st.state !== "failed"
     ) {
-      await new Promise((r) => setTimeout(r, 30));
+      await new Promise((r) => { setTimeout(r, 30); });
       st = await hosted.mediation.getStatus(handle.runId);
     }
     assert.ok(
@@ -378,10 +377,10 @@ prompt: |
           reparked = true;
           break;
         }
-        await new Promise((r) => setTimeout(r, 20));
+        await new Promise((r) => { setTimeout(r, 20); });
       }
       assert.ok(reparked, "continue leaf did not re-park with reason=again");
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise((r) => { setTimeout(r, 100); });
     }
     await hosted.mediation.wake(handle.runId, {
       payloadText: "finish",
@@ -406,15 +405,15 @@ prompt: |
           agent: { name: "x", rootDir: FIXTURE_ROOT },
           task: "nope",
         }),
-      /no RuntimePort/,
+      /no RuntimePort/u,
     );
     await assert.rejects(
       () => mediation.cancel("run-x" as never),
-      /no RuntimePort/,
+      /no RuntimePort/u,
     );
     await assert.rejects(
       () => mediation.wake("run-x" as never, { payloadText: "x" }),
-      /no RuntimePort/,
+      /no RuntimePort/u,
     );
   });
 

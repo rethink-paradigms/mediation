@@ -1,0 +1,111 @@
+{
+  "scenario": "Facade engageLocal Product API",
+  "description": "Test the actual product API that surfaces call",
+  "plan": {
+    "scenario": "Facade engageLocal Product API",
+    "description": "Test the actual product API that surfaces call",
+    "operations": [
+      {
+        "id": "op-1",
+        "type": "capability-store",
+        "resource": "store",
+        "capability": "create",
+        "params": {
+          "variant": "fs",
+          "projectRoot": "fixtures/packs/case-basic"
+        },
+        "captures": [
+          "kind"
+        ]
+      },
+      {
+        "id": "op-2",
+        "type": "facade",
+        "resource": "api",
+        "capability": "engage-local",
+        "params": {
+          "agentName": "case-basic",
+          "rootDir": "fixtures/definition/case-basic",
+          "task": "do local test"
+        },
+        "captures": [
+          "kind",
+          "sessionRef",
+          "packSnapshotHash",
+          "definitionId"
+        ]
+      }
+    ],
+    "cleanup": []
+  },
+  "observations": [
+    {
+      "id": "op-1",
+      "capability": "capability-store:create",
+      "status": "ANOMALY",
+      "duration": 1,
+      "captures": {
+        "kind": "fs"
+      },
+      "rawOutput": {
+        "kind": "fs"
+      },
+      "anomalies": [
+        {
+          "field": "$.kind",
+          "expected": "memory",
+          "actual": "fs",
+          "message": "Soft expectation mismatch at $.kind: expected \"memory\", got \"fs\""
+        }
+      ],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "ready",
+      "startedAt": "2026-07-20T18:01:05.080Z",
+      "completedAt": "2026-07-20T18:01:05.081Z"
+    },
+    {
+      "id": "op-2",
+      "capability": "facade:engage-local",
+      "status": "PASSED",
+      "duration": 12,
+      "captures": {
+        "kind": "settled",
+        "sessionRef": "mock-presence-session",
+        "packSnapshotHash": "608713e21c1126f58a2e1cd3377ceb5c584f2781e49e1718486cf73e32201c93",
+        "definitionId": "case-basic"
+      },
+      "rawOutput": {
+        "kind": "settled",
+        "sessionRef": "mock-presence-session",
+        "packSnapshotHash": "608713e21c1126f58a2e1cd3377ceb5c584f2781e49e1718486cf73e32201c93",
+        "definitionId": "case-basic"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "completed",
+      "startedAt": "2026-07-20T18:01:05.082Z",
+      "completedAt": "2026-07-20T18:01:05.094Z"
+    }
+  ],
+  "cleanupObservations": [],
+  "annotations": [],
+  "captures": {
+    "op-1": {
+      "kind": "fs"
+    },
+    "op-2": {
+      "kind": "settled",
+      "sessionRef": "mock-presence-session",
+      "packSnapshotHash": "608713e21c1126f58a2e1cd3377ceb5c584f2781e49e1718486cf73e32201c93",
+      "definitionId": "case-basic"
+    }
+  },
+  "currentOpIndex": 2,
+  "cleanupIndex": 0,
+  "auth": null,
+  "status": "completed",
+  "startedAt": "2026-07-20T18:01:04.347Z",
+  "updatedAt": "2026-07-20T18:01:05.099Z"
+}

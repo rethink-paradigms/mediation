@@ -12,7 +12,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { OpenWorkflow } from "openworkflow";
 import { BackendSqlite } from "openworkflow/sqlite";
@@ -24,7 +23,7 @@ import { createPiPresenceFactory } from "../../src/adapters/wiring.ts";
 import type { AgentDefinition } from "../../src/domain/definition.ts";
 
 const LIVE = process.env.MEDIATION_LIVE_PI === "1";
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const PKG_ROOT = path.resolve(HERE, "../..");
 
 function liveDefinition(rootDir: string): AgentDefinition {

@@ -92,7 +92,7 @@ export class Mediation {
 
   /** Load inert AgentDefinition from AgentRef. */
   async load(ref: AgentRef): Promise<AgentDefinition> {
-    return this.loader.load(ref);
+    return await this.loader.load(ref);
   }
 
   /** Materialize presence (optional resume). Caller owns dispose. */
@@ -100,7 +100,7 @@ export class Mediation {
     definition: AgentDefinition,
     opts?: MaterializeOptions,
   ): Promise<AgentPresence> {
-    return this.factory.materialize(definition, opts);
+    return await this.factory.materialize(definition, opts);
   }
 
   /**
@@ -234,7 +234,7 @@ export class Mediation {
         "Mediation.dispatch: no RuntimePort configured (wire OpenWorkflowRuntime)",
       );
     }
-    return this.runtime.dispatch(input);
+    return await this.runtime.dispatch(input);
   }
 
   /** Dispatch durable multi-node plan via RuntimePort (recipe C / plan). */
@@ -244,7 +244,7 @@ export class Mediation {
         "Mediation.runPlan: no RuntimePort configured (wire OpenWorkflowRuntime)",
       );
     }
-    return this.runtime.runPlan(plan);
+    return await this.runtime.runPlan(plan);
   }
 
   async wait(
@@ -257,14 +257,14 @@ export class Mediation {
     if (!this.runtime.wait) {
       throw new Error("Mediation.wait: RuntimePort.wait not implemented");
     }
-    return this.runtime.wait(runId, opts);
+    return await this.runtime.wait(runId, opts);
   }
 
   async getStatus(runId: RunId): Promise<RuntimeStatus> {
     if (!this.runtime) {
       throw new Error("Mediation.getStatus: no RuntimePort configured");
     }
-    return this.runtime.getStatus(runId);
+    return await this.runtime.getStatus(runId);
   }
 
   /** Cancel durable OW run (RuntimePort). */
@@ -272,7 +272,7 @@ export class Mediation {
     if (!this.runtime) {
       throw new Error("Mediation.cancel: no RuntimePort configured");
     }
-    return this.runtime.cancel(runId);
+    return await this.runtime.cancel(runId);
   }
 
   /**
@@ -287,7 +287,7 @@ export class Mediation {
     if (!this.runtime) {
       throw new Error("Mediation.sendSignal: no RuntimePort configured");
     }
-    return this.runtime.sendSignal(runId, name, data);
+    return await this.runtime.sendSignal(runId, name, data);
   }
 
   /**
@@ -303,14 +303,14 @@ export class Mediation {
       readonly parkReason?: string;
     },
   ): Promise<void> {
-    return this.sendSignal(runId, "wake", data);
+    return await this.sendSignal(runId, "wake", data);
   }
 
   async getJoinByRunId(runId: RunId): Promise<EngagementRecord | null> {
     if (!this.join) {
       throw new Error("Mediation.getJoinByRunId: no JoinStore configured");
     }
-    return this.join.getByRunId(runId);
+    return await this.join.getByRunId(runId);
   }
 
   async getJoinBySessionRef(
@@ -319,6 +319,7 @@ export class Mediation {
     if (!this.join) {
       throw new Error("Mediation.getJoinBySessionRef: no JoinStore configured");
     }
-    return this.join.getBySessionRef(sessionRef);
+    return await this.join.getBySessionRef(sessionRef);
   }
 }
+

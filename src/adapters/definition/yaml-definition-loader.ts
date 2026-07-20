@@ -4,10 +4,16 @@
  * Maps company harness AgentConfig (snake_case yaml) → domain AgentDefinition.
  * Fail-closed: missing/invalid yaml → MediationError DEFINITION_NOT_FOUND / INVALID.
  * Does not construct sessions (D0 inert definition).
+ *
+ * Validation uses a Zod schema (AgentYamlSchema). Unknown yaml keys pass through
+ * (passthrough) so forward-compat harness keys like `tracing` are not rejected.
+ * Replace with .strict() to catch unknown-key typos (at the cost of rejecting
+ * future harness additions not yet in the schema).
  */
 
 import fs from "node:fs";
 import path from "node:path";
+import { z, ZodError } from "zod";
 import { parse as parseYaml } from "yaml";
 
 import type {
@@ -19,429 +25,271 @@ import type {
 import { MediationError } from "../../domain/errors.ts";
 import type { DefinitionLoader } from "../../ports/definition-loader.ts";
 
-const THINKING_LEVELS = new Set([
-  "off",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-] as const);
-
-type ThinkingLevel = NonNullable<AgentDefinition["thinking"]>;
-
-const AGENT_MODES = new Set(["static", "dynamic"] as const);
-type AgentMode = "static" | "dynamic";
-
-/** Known harness yaml keys (snake_case + camel residual). */
-const KNOWN_YAML_KEYS = new Set([
-  "name",
-  "model",
-  "thinking",
-  "extends",
-  "tools",
-  "agent_mode",
-  "active_tools",
-  "extensions",
-  "skills",
-  "prompt",
-  "no_core_skills",
-  "memory",
-  "max_tokens",
-  "max_cost_per_day_usd",
-  "max_concurrency",
-  "task_timeout_minutes",
-]);
-
 export type YamlDefinitionLoaderOptions = {
   /** Config file name under agent root. Default: `agent.yaml`. */
   readonly configFileName?: string;
 };
 
-/**
- * Raw yaml shape (harness-compatible). Loose typing; validated in mapYaml.
- */
-type RawAgentYaml = {
-  name?: unknown;
-  model?: unknown;
-  thinking?: unknown;
-  extends?: unknown;
-  tools?: unknown;
-  agent_mode?: unknown;
-  active_tools?: unknown;
-  extensions?: unknown;
-  skills?: unknown;
-  prompt?: unknown;
-  no_core_skills?: unknown;
-  memory?: unknown;
-  max_tokens?: unknown;
-  max_cost_per_day_usd?: unknown;
-  max_concurrency?: unknown;
-  task_timeout_minutes?: unknown;
-  [key: string]: unknown;
-};
+// ─── Zod schema ────────────────────────────────────────────────────────────
+// Each field mirrors the harness agent.yaml shape. Unknown keys pass through
+// (passthrough) so forward-compat fields are not rejected.
+// ────────────────────────────────────────────────────────────────────────────
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
+/** Structured { provider, id } form, accepting `id` or `modelId` as the key. */
+const StructuredModelSchema = z
+  .object({
+    provider: z.string().min(1),
+    id: z.string().min(1).optional(),
+    modelId: z.string().min(1).optional(),
+  })
+  .refine(
+    (v) => v.id !== undefined || v.modelId !== undefined,
+    { message: '"model" structured form must have "id" or "modelId"' },
+  )
+  .transform((v) => ({
+    provider: v.provider,
+    id: (v.id ?? v.modelId) as string,
+  }));
 
-function asStringArray(
-  value: unknown,
-  field: string,
-  details: Record<string, unknown>,
-): string[] | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (!Array.isArray(value)) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      `agent.yaml field "${field}" must be an array of strings`,
-      { ...details, field, value },
-    );
-  }
-  const out: string[] = [];
-  for (const item of value) {
-    if (typeof item !== "string") {
-      throw new MediationError(
-        "DEFINITION_INVALID",
-        `agent.yaml field "${field}" must be an array of strings`,
-        { ...details, field, value },
-      );
-    }
-    out.push(item);
-  }
-  return out;
-}
+const AgentYamlSchema = z.object({
+  name: z.string().min(1, '"name" must be a non-empty string'),
+  model: z.union([
+    z.string().min(1, '"model" must be a non-empty string or {provider, id}'),
+    StructuredModelSchema,
+  ]),
 
-function asOptionalNumber(
-  value: unknown,
-  field: string,
-  details: Record<string, unknown>,
-): number | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      `agent.yaml field "${field}" must be a finite number`,
-      { ...details, field, value },
-    );
-  }
-  return value;
-}
+  // Optional scalars
+  thinking: z
+    .enum(["off", "minimal", "low", "medium", "high", "xhigh", "max"])
+    .optional(),
+  agent_mode: z.enum(["static", "dynamic"]).optional(),
+  prompt: z.string().optional(),
+  no_core_skills: z.boolean().optional(),
+  max_tokens: z.number().finite().optional(),
+  max_cost_per_day_usd: z.number().finite().optional(),
+  max_concurrency: z.number().finite().optional(),
+  task_timeout_minutes: z.number().finite().optional(),
+  extends: z.string().optional(),
 
-function asOptionalBoolean(
-  value: unknown,
-  field: string,
-  details: Record<string, unknown>,
-): boolean | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== "boolean") {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      `agent.yaml field "${field}" must be a boolean`,
-      { ...details, field, value },
-    );
-  }
-  return value;
-}
+  // String arrays
+  active_tools: z.string().array().optional(),
+  extensions: z.string().array().optional(),
+  skills: z.string().array().optional(),
 
-function parseModel(
-  raw: unknown,
-  details: Record<string, unknown>,
-): ModelSpec {
-  if (typeof raw === "string") {
-    const s = raw.trim();
-    if (s.length === 0) {
-      throw new MediationError(
-        "DEFINITION_INVALID",
-        'agent.yaml "model" must be non-empty string or {provider,id}',
-        details,
-      );
-    }
-    return s;
-  }
-  if (isPlainObject(raw)) {
-    const provider = raw.provider;
-    const id = raw.id ?? raw.modelId;
-    if (typeof provider === "string" && typeof id === "string" && provider && id) {
-      return { provider, id };
-    }
-  }
-  throw new MediationError(
-    "DEFINITION_INVALID",
-    'agent.yaml "model" must be "provider/model-id" string or {provider, id}',
-    { ...details, model: raw },
-  );
-}
+  // Tool policy object
+  tools: z
+    .object({
+      builtin: z.string().array().optional(),
+      custom: z.string().array().optional(),
+      exclude: z.string().array().optional(),
+      agentMode: z.enum(["static", "dynamic"]).optional(),
+      activeTools: z.string().array().optional(),
+    })
+    .passthrough()
+    .optional(),
 
-function parseThinking(
-  raw: unknown,
-  details: Record<string, unknown>,
-): ThinkingLevel | undefined {
-  if (raw === undefined || raw === null) return undefined;
-  if (typeof raw !== "string" || !THINKING_LEVELS.has(raw as ThinkingLevel)) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      `agent.yaml "thinking" must be one of: ${[...THINKING_LEVELS].join(", ")}`,
-      { ...details, thinking: raw },
-    );
-  }
-  return raw as ThinkingLevel;
-}
+  // Memory config object
+  memory: z
+    .object({
+      enabled: z.boolean(),
+      namespace: z.string().optional(),
+      recallLimit: z.number().finite().optional(),
+    })
+    .passthrough()
+    .optional(),
+}).passthrough();
 
-function parseAgentMode(
-  raw: unknown,
-  details: Record<string, unknown>,
-): AgentMode | undefined {
-  if (raw === undefined || raw === null) return undefined;
-  if (typeof raw !== "string" || !AGENT_MODES.has(raw as AgentMode)) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      'agent.yaml "agent_mode" must be "static" or "dynamic"',
-      { ...details, agent_mode: raw },
-    );
-  }
-  return raw as AgentMode;
-}
+/** Inferred type of the validated yaml structure (post-transform). */
+type ParsedAgentYaml = z.output<typeof AgentYamlSchema>;
 
-function parseTools(
-  raw: unknown,
-  details: Record<string, unknown>,
-): ToolPolicy | undefined {
-  if (raw === undefined || raw === null) return undefined;
-  if (!isPlainObject(raw)) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      'agent.yaml "tools" must be an object',
-      { ...details, tools: raw },
-    );
-  }
-  const builtin = asStringArray(raw.builtin, "tools.builtin", details);
-  const custom = asStringArray(raw.custom, "tools.custom", details);
-  const exclude = asStringArray(raw.exclude, "tools.exclude", details);
-  const agentMode = parseAgentMode(raw.agentMode ?? raw.agent_mode, details);
-  const activeTools = asStringArray(
-    raw.activeTools ?? raw.active_tools,
-    "tools.active_tools",
-    details,
-  );
-  const policy: ToolPolicy = {
-    ...(builtin !== undefined ? { builtin } : {}),
-    ...(custom !== undefined ? { custom } : {}),
-    ...(exclude !== undefined ? { exclude } : {}),
-    ...(agentMode !== undefined ? { agentMode } : {}),
-    ...(activeTools !== undefined ? { activeTools } : {}),
-  };
-  return policy;
-}
+/** Set of all top-level keys known to the schema (used for meta extraction). */
+const KNOWN_TOP_KEYS = new Set([
+  "name",
+  "model",
+  "thinking",
+  "agent_mode",
+  "prompt",
+  "no_core_skills",
+  "max_tokens",
+  "max_cost_per_day_usd",
+  "max_concurrency",
+  "task_timeout_minutes",
+  "extends",
+  "active_tools",
+  "extensions",
+  "skills",
+  "tools",
+  "memory",
+]);
 
-function parseMemory(
-  raw: unknown,
-  details: Record<string, unknown>,
-): AgentDefinition["memory"] | undefined {
-  if (raw === undefined || raw === null) return undefined;
-  if (!isPlainObject(raw)) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      'agent.yaml "memory" must be an object',
-      { ...details, memory: raw },
-    );
-  }
-  const enabled = raw.enabled;
-  if (typeof enabled !== "boolean") {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      'agent.yaml "memory.enabled" must be a boolean',
-      { ...details, memory: raw },
-    );
-  }
-  const namespace =
-    raw.namespace === undefined || raw.namespace === null
-      ? undefined
-      : typeof raw.namespace === "string"
-        ? raw.namespace
-        : (() => {
-            throw new MediationError(
-              "DEFINITION_INVALID",
-              'agent.yaml "memory.namespace" must be a string',
-              { ...details, memory: raw },
-            );
-          })();
-  const recallLimit = asOptionalNumber(
-    raw.recallLimit,
-    "memory.recallLimit",
-    details,
-  );
-  return {
-    enabled,
-    ...(namespace !== undefined ? { namespace } : {}),
-    ...(recallLimit !== undefined ? { recallLimit } : {}),
-  };
-}
+// ─── Helpers ───────────────────────────────────────────────────────────────
 
-/**
- * Resolve prompt field: relative .md/.txt path → file contents; else inline text.
- * Fail-closed when a path-like prompt is declared but missing.
- */
-export function loadPromptField(
-  prompt: string | undefined,
-  rootDir: string,
-  details: Record<string, unknown>,
-): string | undefined {
-  if (prompt === undefined || prompt === "") return undefined;
-
-  const looksLikeFile =
-    prompt.endsWith(".md") ||
-    prompt.endsWith(".txt") ||
-    prompt.includes("/") ||
-    prompt.includes("\\");
-
-  if (!looksLikeFile) {
-    return prompt; // inline system prompt text
-  }
-
-  const promptPath = path.isAbsolute(prompt)
-    ? prompt
-    : path.resolve(rootDir, prompt);
-
-  if (!fs.existsSync(promptPath) || !fs.statSync(promptPath).isFile()) {
-    // Harness treats bare .md miss as WARN+inline; mediation fails closed for path-like values.
-    if (prompt.endsWith(".md") || prompt.endsWith(".txt")) {
-      throw new MediationError(
-        "DEFINITION_INVALID",
-        `prompt file not found: ${promptPath}`,
-        { ...details, prompt, promptPath },
-      );
-    }
-    // Path-like without extension and missing → treat as inline (rare)
-    return prompt;
-  }
-
-  return fs.readFileSync(promptPath, "utf8");
-}
-
-function residualMeta(
-  raw: RawAgentYaml,
-): Readonly<Record<string, unknown>> | undefined {
+function extractResidualMeta(
+  parsed: ParsedAgentYaml,
+): Record<string, unknown> | undefined {
   const meta: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(raw)) {
-    if (!KNOWN_YAML_KEYS.has(k)) {
-      meta[k] = v;
-    }
+  for (const [k, v] of Object.entries(parsed)) {
+    if (!KNOWN_TOP_KEYS.has(k)) meta[k] = v;
   }
   return Object.keys(meta).length > 0 ? meta : undefined;
 }
 
 /**
- * Map parsed yaml object + AgentRef → AgentDefinition.
- * Exported for unit tests without fs for pure mapping cases.
+ * Convert a ZodError into a MediationError with DEFINITION_INVALID.
+ * Preserves the Zod issue details for debugging.
+ */
+function throwZodError(
+  err: unknown,
+  details: Record<string, unknown>,
+): never {
+  if (err instanceof ZodError) {
+    const messages = err.issues.map(
+      (issue) => `${issue.path.join(".")}: ${issue.message}`,
+    );
+    throw new MediationError("DEFINITION_INVALID", messages.join("; "), {
+      ...details,
+      zodIssues: err.issues,
+    });
+  }
+  throw err;
+}
+
+// ─── Prompt loading ────────────────────────────────────────────────────────
+
+/**
+ * Load prompt text from a path string, or return inline text.
+ * Fail-closed when `prompt` looks like a file path (.md/.txt) but doesn't exist.
+ *
+ * Extracted for reuse — tests that only exercise mapping can pass
+ * `loadPrompt: false` to mapYamlToDefinition instead of patching fs.
+ */
+export function loadPromptField(
+  prompt: string,
+  rootDir: string,
+  details: Record<string, unknown>,
+): string {
+  const promptPath = path.resolve(rootDir, prompt);
+  if (!fs.existsSync(promptPath) || !fs.statSync(promptPath).isFile()) {
+    // Path-like without .md/.txt extension → treat as inline text.
+    if (!prompt.endsWith(".md") && !prompt.endsWith(".txt")) {
+      return prompt;
+    }
+    throw new MediationError(
+      "DEFINITION_INVALID",
+      `prompt file not found: ${promptPath}`,
+      { ...details, prompt, promptPath },
+    );
+  }
+  return fs.readFileSync(promptPath, "utf8");
+}
+
+// ─── Core mapper ───────────────────────────────────────────────────────────
+
+/**
+ * Pure mapping from parsed yaml → AgentDefinition.
+ *
+ * Validation is handled by AgentYamlSchema before this function.
+ * This function only transforms validated shapes into the domain type.
+ *
+ * Pass `options.loadPrompt: false` in tests that don't need prompt file I/O
+ * (e.g. inline prompt or mock prompt loading).
  */
 export function mapYamlToDefinition(
   raw: unknown,
   ref: AgentRef,
   options: { loadPrompt?: boolean } = {},
 ): AgentDefinition {
-  const details = { rootDir: ref.rootDir, name: ref.name };
-  if (!isPlainObject(raw)) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      "agent.yaml root must be a mapping/object",
-      details,
-    );
-  }
-  const yaml = raw as RawAgentYaml;
+  const details = { agentName: ref.name, rootDir: ref.rootDir };
 
-  if (typeof yaml.name !== "string" || yaml.name.trim() === "") {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      'agent.yaml requires non-empty string "name"',
-      details,
-    );
-  }
-  if (yaml.model === undefined || yaml.model === null) {
-    throw new MediationError(
-      "DEFINITION_INVALID",
-      'agent.yaml requires "model"',
-      details,
-    );
+  // 1. Validate raw yaml through the Zod schema.
+  let yaml: ParsedAgentYaml;
+  try {
+    yaml = AgentYamlSchema.parse(raw);
+  } catch (err) {
+    throwZodError(err, details);
   }
 
-  const name = yaml.name.trim();
-  const model = parseModel(yaml.model, details);
-  const thinking = parseThinking(yaml.thinking, details);
-  const agentMode = parseAgentMode(yaml.agent_mode, details);
-  const activeTools = asStringArray(yaml.active_tools, "active_tools", details);
-  const extensions = asStringArray(yaml.extensions, "extensions", details);
-  const skills = asStringArray(yaml.skills, "skills", details);
-  const noCoreSkills = asOptionalBoolean(
-    yaml.no_core_skills,
-    "no_core_skills",
-    details,
-  );
-  const maxTokens = asOptionalNumber(yaml.max_tokens, "max_tokens", details);
-  const maxCostPerDayUsd = asOptionalNumber(
-    yaml.max_cost_per_day_usd,
-    "max_cost_per_day_usd",
-    details,
-  );
-  const maxConcurrency = asOptionalNumber(
-    yaml.max_concurrency,
-    "max_concurrency",
-    details,
-  );
-  const taskTimeoutMinutes = asOptionalNumber(
-    yaml.task_timeout_minutes,
-    "task_timeout_minutes",
-    details,
-  );
-  const extendsPath =
-    yaml.extends === undefined || yaml.extends === null
-      ? undefined
-      : typeof yaml.extends === "string"
-        ? yaml.extends
-        : (() => {
-            throw new MediationError(
-              "DEFINITION_INVALID",
-              'agent.yaml "extends" must be a string path',
-              { ...details, extends: yaml.extends },
-            );
-          })();
+  // 2. Extract residual unknown keys → meta (forward compat).
+  const meta = extractResidualMeta(yaml);
 
-  let tools = parseTools(yaml.tools, details);
-  // Mirror top-level agent_mode / active_tools onto tools policy when present.
+  // 3. Parse individual fields (now validated — just extracting values).
+  const model: ModelSpec =
+    typeof yaml.model === "string"
+      ? yaml.model
+      : { provider: yaml.model.provider, id: yaml.model.id };
+
+  const thinking = yaml.thinking;
+  const agentMode = yaml.agent_mode;
+  const activeTools = yaml.active_tools;
+  const noCoreSkills = yaml.no_core_skills;
+  const extensions = yaml.extensions;
+  const skills = yaml.skills;
+  const maxTokens = yaml.max_tokens;
+  const maxCostPerDayUsd = yaml.max_cost_per_day_usd;
+  const maxConcurrency = yaml.max_concurrency;
+  const taskTimeoutMinutes = yaml.task_timeout_minutes;
+  const extendsFrom = yaml.extends;
+
+  // 4. Parse tools sub-object.
+  let tools: ToolPolicy | undefined;
+  if (yaml.tools !== undefined) {
+    tools = {
+      ...(yaml.tools.builtin !== undefined
+        ? { builtin: yaml.tools.builtin }
+        : {}),
+      ...(yaml.tools.custom !== undefined
+        ? { custom: yaml.tools.custom }
+        : {}),
+      ...(yaml.tools.exclude !== undefined
+        ? { exclude: yaml.tools.exclude }
+        : {}),
+      ...(yaml.tools.agentMode !== undefined
+        ? { agentMode: yaml.tools.agentMode }
+        : {}),
+      ...(yaml.tools.activeTools !== undefined
+        ? { activeTools: yaml.tools.activeTools }
+        : {}),
+    };
+  }
+
+  // 5. Mirror top-level agent_mode / active_tools onto tools policy.
   if (agentMode !== undefined || activeTools !== undefined) {
     tools = {
-      ...(tools ?? {}),
+      ...tools,
       ...(agentMode !== undefined ? { agentMode } : {}),
       ...(activeTools !== undefined ? { activeTools } : {}),
     };
   }
 
-  const memory = parseMemory(yaml.memory, details);
-  const meta = residualMeta(yaml);
+  // 6. Parse memory.
+  let memory: AgentDefinition["memory"];
+  if (yaml.memory !== undefined) {
+    memory = {
+      enabled: yaml.memory.enabled,
+      ...(yaml.memory.namespace !== undefined
+        ? { namespace: yaml.memory.namespace }
+        : {}),
+      ...(yaml.memory.recallLimit !== undefined
+        ? { recallLimit: yaml.memory.recallLimit }
+        : {}),
+    };
+  }
 
+  // 7. Load prompt (file or inline).
   let prompt: string | undefined;
-  if (yaml.prompt !== undefined && yaml.prompt !== null) {
-    if (typeof yaml.prompt !== "string") {
-      throw new MediationError(
-        "DEFINITION_INVALID",
-        'agent.yaml "prompt" must be a string (path or inline text)',
-        { ...details, prompt: yaml.prompt },
-      );
-    }
-    if (options.loadPrompt === false) {
-      prompt = yaml.prompt;
-    } else {
+  if (yaml.prompt !== undefined) {
+    if (options.loadPrompt !== false) {
       prompt = loadPromptField(yaml.prompt, ref.rootDir, details);
+    } else {
+      prompt = yaml.prompt;
     }
   }
 
-  const rootDir = path.resolve(ref.rootDir);
-
+  // 8. Assemble AgentDefinition (all fields optional except id/name/rootDir/model).
   const def: AgentDefinition = {
-    id: name,
-    name,
-    rootDir,
+    id: ref.name,
+    name: ref.name,
+    rootDir: path.resolve(ref.rootDir),
     model,
     ...(thinking !== undefined ? { thinking } : {}),
     ...(prompt !== undefined ? { prompt } : {}),
@@ -456,67 +304,69 @@ export function mapYamlToDefinition(
     ...(maxCostPerDayUsd !== undefined ? { maxCostPerDayUsd } : {}),
     ...(maxConcurrency !== undefined ? { maxConcurrency } : {}),
     ...(taskTimeoutMinutes !== undefined ? { taskTimeoutMinutes } : {}),
-    ...(extendsPath !== undefined ? { extends: extendsPath } : {}),
+    ...(extendsFrom !== undefined ? { extends: extendsFrom } : {}),
     ...(meta !== undefined ? { meta } : {}),
   };
+
   return def;
 }
 
+// ─── YamlDefinitionLoader ──────────────────────────────────────────────────
+
+/**
+ * Load inert AgentDefinition from a yaml file on disk.
+ */
 export class YamlDefinitionLoader implements DefinitionLoader {
   private readonly configFileName: string;
 
-  constructor(options: YamlDefinitionLoaderOptions = {}) {
-    this.configFileName = options.configFileName ?? "agent.yaml";
+  constructor(options?: YamlDefinitionLoaderOptions) {
+    this.configFileName = options?.configFileName ?? "agent.yaml";
   }
 
   async load(ref: AgentRef): Promise<AgentDefinition> {
-    const rootDir = path.resolve(ref.rootDir);
-    const configPath = path.join(rootDir, this.configFileName);
+    const configPath = path.resolve(ref.rootDir, this.configFileName);
+    const details = { configPath, agentName: ref.name };
 
-    if (!fs.existsSync(configPath) || !fs.statSync(configPath).isFile()) {
+    let rawText: string;
+    try {
+      rawText = fs.readFileSync(configPath, "utf8");
+    } catch {
       throw new MediationError(
         "DEFINITION_NOT_FOUND",
-        `No ${this.configFileName} at ${configPath}`,
-        { rootDir, name: ref.name, configPath },
+        `agent.yaml not found at ${configPath}`,
+        details,
       );
     }
 
-    let text: string;
+    let yaml: unknown;
     try {
-      text = fs.readFileSync(configPath, "utf8");
-    } catch (err) {
-      throw new MediationError(
-        "DEFINITION_NOT_FOUND",
-        `Cannot read ${configPath}: ${err instanceof Error ? err.message : String(err)}`,
-        { rootDir, name: ref.name, configPath, cause: err },
-      );
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = parseYaml(text);
-    } catch (err) {
+      yaml = parseYaml(rawText);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       throw new MediationError(
         "DEFINITION_INVALID",
-        `Invalid YAML in ${configPath}: ${err instanceof Error ? err.message : String(err)}`,
-        { rootDir, name: ref.name, configPath, cause: err },
+        `agent.yaml parse error: ${message}`,
+        details,
       );
     }
 
-    if (parsed === null || parsed === undefined) {
+    if (typeof yaml !== "object" || yaml === null || Array.isArray(yaml)) {
       throw new MediationError(
         "DEFINITION_INVALID",
-        `Empty agent.yaml at ${configPath}`,
-        { rootDir, name: ref.name, configPath },
+        "agent.yaml must be a mapping (top-level object)",
+        { ...details, got: typeof yaml },
       );
     }
 
-    return mapYamlToDefinition(parsed, { name: ref.name, rootDir });
+    return mapYamlToDefinition(yaml, ref);
   }
 }
 
+/** Create a YamlDefinitionLoader with optional config file name override. */
 export function createYamlDefinitionLoader(
   options?: YamlDefinitionLoaderOptions,
-): YamlDefinitionLoader {
+): DefinitionLoader {
   return new YamlDefinitionLoader(options);
 }
+
+

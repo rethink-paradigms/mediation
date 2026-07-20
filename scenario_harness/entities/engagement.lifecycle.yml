@@ -1,0 +1,101 @@
+name: engagement
+description: |
+  A durable engagement unit matching runtime workflow status.
+
+states:
+  absent: Not dispatched
+  running: Dispatch running or parked
+  completed: Dispatch run completed
+  failed: Dispatch run failed
+
+capabilities:
+  create:
+    from: absent
+    to: running
+    description: Dispatch an engagement workflow run
+    parameters:
+      agentName:
+        required: true
+      rootDir:
+        required: true
+      task:
+        required: true
+      parkIntent:
+        required: false
+        default: false
+    captures:
+      runId: "$.runId"
+    action:
+      method: dispatchWorkflow
+    assert:
+      body:
+        "$.runId": "is not null"
+
+  wait-until:
+    from: running
+    to: "{{ target }}"
+    description: Wait until workflow reaches terminal target status
+    parameters:
+      runId:
+        required: true
+      target:
+        required: true
+        description: '"completed" or "failed"'
+      timeout:
+        required: false
+        default: 60
+      interval:
+        required: false
+        default: 5
+    captures:
+      state: "$.state"
+    action:
+      method: getWorkflowStatus
+    poll:
+      field: "$.state"
+      until: "{{ target }}"
+
+  cancel:
+    from: running
+    to: failed
+    description: Cancel a running or parked workflow
+    parameters:
+      runId:
+        required: true
+    action:
+      method: cancelWorkflow
+    assert:
+      body:
+        "$.success": "true"
+
+  wake:
+    from: running
+    to: running
+    description: Wake a parked workflow with new text
+    parameters:
+      runId:
+        required: true
+      text:
+        required: true
+    action:
+      method: wakeWorkflow
+    assert:
+      body:
+        "$.success": "true"
+
+  get-join:
+    from: running
+    to: running
+    description: Get the join correlation record
+    parameters:
+      runId:
+        required: true
+    captures:
+      sessionRef: "$.sessionRef"
+      packSnapshotHash: "$.packSnapshotHash"
+      status: "$.status"
+    action:
+      method: getWorkflowJoin
+    assert:
+      body:
+        "$.sessionRef": "is not null"

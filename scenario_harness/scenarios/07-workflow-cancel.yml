@@ -1,0 +1,16 @@
+name: Workflow Cancellation
+description: Clean cancellation of a running workflow
+resources:
+  - type: capability-store
+    as: store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: engagement
+    as: dispatch-1
+    agentName: case-basic
+    rootDir: fixtures/definition/case-basic
+    task: "do something that takes time"
+    until: canceled
+    then:
+      - cancel

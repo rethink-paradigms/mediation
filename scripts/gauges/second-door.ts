@@ -7,13 +7,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PKG_ROOT = path.resolve(__dirname, "../..");
+const PKG_ROOT = path.resolve(import.meta.dirname, "../..");
 const SRC = path.join(PKG_ROOT, "src");
 
-const DOOR_RE = /\bcreateAgentSession(?:FromServices)?\b/g;
+const DOOR_RE = /\bcreateAgentSession(?:FromServices)?\b/gu;
 const PI_ADAPTER_PREFIX = path.join(SRC, "adapters", "pi") + path.sep;
 
 function walk(dir: string, out: string[] = []): string[] {
@@ -21,7 +19,7 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, ent.name);
     if (ent.isDirectory()) walk(p, out);
-    else if (ent.isFile() && /\.(ts|tsx|mts|cts|js|mjs|cjs)$/.test(ent.name)) {
+    else if (ent.isFile() && /\.(ts|tsx|mts|cts|js|mjs|cjs)$/u.test(ent.name)) {
       out.push(p);
     }
   }
@@ -42,10 +40,10 @@ export function measureSecondDoor(): SecondDoorGauge {
   for (const file of walk(SRC)) {
     if (file.startsWith(PI_ADAPTER_PREFIX)) continue;
     const text = fs.readFileSync(file, "utf8");
-    const lines = text.split(/\r?\n/);
+    const lines = text.split(/\r?\n/u);
     lines.forEach((line, i) => {
       // Comments may document the door; only code / imports count as second doors.
-      const code = line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
+      const code = line.replaceAll(/\/\/.*$/gu, "").replaceAll(/\/\*[\s\S]*?\*\//gu, "");
       DOOR_RE.lastIndex = 0;
       if (DOOR_RE.test(code)) {
         details.push({
@@ -77,3 +75,4 @@ if (
     process.exitCode = 1;
   }
 }
+

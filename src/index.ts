@@ -1,16 +1,19 @@
 /**
  * @company/mediation — public surface.
- * S0–S2: types + ports + experimental app factory/presence (mock-first).
- * S2b: real Pi under src/adapters/pi/ (composition import; not re-exported here).
- * S2c: createPiPresenceFactory in src/adapters/wiring.ts (composition import; not here).
- * S5a: OpenWorkflow RuntimePort + engagement leaf + MemoryJoinStore.
- * S5b: leaf + createPiPresenceFactory (tests; composition via wiring).
- * S5c: registerEngagementWorkflow for OW worker execution.
- * S6: SqliteJoinStore durable join.
- * One door: real engine session open only under adapters/pi.
+ *
+ * Layer-organized public API. Exports follow the architecture:
+ *   Domain → Ports → Adapters → App → Composition
+ *
+ * The real PiEngineAdapter is the single engine implementation and is
+ * publicly exported for composition. Wire via composition roots
+ * (createLocalMediation / createHostedMediation) for the preferred path.
  *
  * Relative re-exports use `.ts` for strip-types runtime (noEmit package).
  */
+
+// ==========================================================================
+// DOMAIN LAYER — types that define what the system IS
+// ==========================================================================
 
 export type {
   AgentRef,
@@ -29,7 +32,7 @@ export type {
   PackDiagnosticSeverity,
 } from "./domain/packs.ts";
 
-// --- ABS-A1 domain capability types (D5 medium independence) ---
+// --- ABS-A1 Capability domain types (D5 medium independence) ---
 export type {
   CapabilityId,
   CapabilityKind,
@@ -41,7 +44,7 @@ export type {
 } from "./domain/capability.ts";
 export { asCapabilityId } from "./domain/capability.ts";
 
-// --- ABS-A5 config layers (root · family · agent) pure merge ---
+// --- ABS-A5 Config layers (root · family · agent) pure merge ---
 export type {
   ConfigLayerKind,
   CapabilitySpec,
@@ -77,6 +80,10 @@ export type { MediationEvent } from "./domain/events.ts";
 export { MediationError } from "./domain/errors.ts";
 export type { MediationErrorCode } from "./domain/errors.ts";
 
+// ==========================================================================
+// PORT LAYER — interfaces the system needs (abstract boundaries)
+// ==========================================================================
+
 export type {
   EnginePort,
   EngineSessionHandle,
@@ -94,9 +101,6 @@ export type {
   PlanEdgeSpec,
   RuntimeStatus,
 } from "./ports/runtime.ts";
-
-export type { JoinStore } from "./ports/join.ts";
-export type { DefinitionLoader } from "./ports/definition-loader.ts";
 
 // --- ABS-B1 SurfacePort (connectors only; CLI adapter is B2) ---
 export type {
@@ -118,14 +122,21 @@ export type {
   PublishCapabilityInput,
 } from "./ports/capability-store.ts";
 
-// --- ABS-R1 RegistryCapabilityStore stub (D5 L5; in-memory, no HTTP) ---
-export {
-  RegistryCapabilityStore,
-  createRegistryCapabilityStore,
-} from "./adapters/capability/registry-store.ts";
-export type { RegistryCapabilityStoreOptions } from "./adapters/capability/registry-store.ts";
+// --- ABS-A6 CapabilityResolver port (merge layers + store.get fail-closed) ---
+export type {
+  CapabilityResolver,
+  CapabilityResolveInput,
+  CapabilityResolveResult,
+} from "./ports/capability-resolver.ts";
 
-// --- ABS-A3 FsCapabilityStore (D5 L2/L4; FS adapter only) ---
+export type { JoinStore } from "./ports/join.ts";
+export type { DefinitionLoader } from "./ports/definition-loader.ts";
+
+// ==========================================================================
+// ADAPTER LAYER — concrete implementations of ports
+// ==========================================================================
+
+// --- ABS-A3 FsCapabilityStore (D5 L2/L4; FS adapter) ---
 export {
   FsCapabilityStore,
   createFsCapabilityStore,
@@ -137,84 +148,34 @@ export type {
   FsResolvedModule,
 } from "./adapters/capability/fs-store.ts";
 
+// --- ABS-A4 MemoryCapabilityStore (tests/fixtures; no FS) ---
+export { MemoryCapabilityStore } from "./adapters/capability/memory-store.ts";
+
+// --- ABS-R1 RegistryCapabilityStore stub (D5 L5; in-memory, no HTTP) ---
+export {
+  RegistryCapabilityStore,
+  createRegistryCapabilityStore,
+} from "./adapters/capability/registry-store.ts";
+export type { RegistryCapabilityStoreOptions } from "./adapters/capability/registry-store.ts";
+
+// --- ABS-A6 DefaultCapabilityResolver (merge layers + store.get fail-closed) ---
+export {
+  DefaultCapabilityResolver,
+  createCapabilityResolver,
+} from "./adapters/capability/resolve.ts";
+export type { DefaultCapabilityResolverOptions } from "./adapters/capability/resolve.ts";
+
+// --- PiEngineAdapter — single real engine implementation ---
+export { PiEngineAdapter } from "./adapters/pi/engine-adapter.ts";
+export type { PiEngineAdapterOptions } from "./adapters/pi/engine-adapter.ts";
+
 // --- ABS-B2 Mediation as SurfacePort (CLI uses SurfacePort only) ---
 export {
   createMediationSurface,
   MediationSurface,
 } from "./adapters/surface/mediation-surface.ts";
 
-// --- S2 experimental app surface (mock-first; real Pi deferred) ---
-// CUT: CapabilityResolver is the sole materialize resolve path (D5)
-export {
-  DefaultPresenceFactory,
-  capabilitySpecFromDefinition,
-  modulePathFromArtifact,
-  packLoadPlanFromCapabilityArtifacts,
-} from "./app/factory.ts";
-export type {
-  DefaultPresenceFactoryDeps,
-  PackSnapshotFn,
-} from "./app/factory.ts";
-export { DefaultAgentPresence } from "./app/presence.ts";
-export type { DefaultAgentPresenceOptions } from "./app/presence.ts";
-export { evaluateSettled, maySettle } from "./app/settled-policy.ts";
-export type {
-  SettledPolicyInput,
-  SettledDecision,
-} from "./app/settled-policy.ts";
-
-// --- S7 Mediation façade (ports only; compose in adapters) ---
-export { Mediation } from "./app/mediation.ts";
-export type {
-  MediationDeps,
-  EngageLocalInput,
-  EngageLocalResult,
-  ReenterInput,
-  ReenterResult,
-} from "./app/mediation.ts";
-
-// --- ABS-B3 experience recipes (thin Mediation wrappers; D0 P6) ---
-export type { Recipe, RecipeContext } from "./app/recipes/types.ts";
-export { solo } from "./app/recipes/solo.ts";
-export type { SoloInput, SoloResult } from "./app/recipes/solo.ts";
-export { reenter } from "./app/recipes/reenter.ts";
-export type {
-  ReenterRecipeInput,
-  ReenterRecipeResult,
-} from "./app/recipes/reenter.ts";
-export { dispatch } from "./app/recipes/dispatch.ts";
-export type {
-  DispatchRecipeInput,
-  DispatchRecipeResult,
-} from "./app/recipes/dispatch.ts";
-export { plan } from "./app/recipes/plan.ts";
-export type { PlanRecipeInput, PlanRecipeResult } from "./app/recipes/plan.ts";
-export { wake } from "./app/recipes/wake.ts";
-export type { WakeRecipeInput, WakeRecipeResult } from "./app/recipes/wake.ts";
-export {
-  createLocalMediation,
-  createHostedMediation,
-  resolveCapabilityResolver,
-  resolveHostedJoin,
-  defaultHostedJoinPath,
-} from "./adapters/compose.ts";
-export type {
-  CreateLocalMediationOptions,
-  LocalMediationComposition,
-  CreateHostedMediationOptions,
-  HostedMediationComposition,
-} from "./adapters/compose.ts";
-export {
-  MockEnginePort,
-  MockEngineSessionHandle,
-} from "./adapters/mock/engine-adapter.ts";
-export type { MockEngineAdapterOptions } from "./adapters/mock/engine-adapter.ts";
-export {
-  toPackSnapshot,
-  packPlanHash,
-} from "./adapters/packs/pack-snapshot.ts";
-
-// --- S1b YamlDefinitionLoader (inert agent.yaml → AgentDefinition) ---
+// --- YamlDefinitionLoader (inert agent.yaml → AgentDefinition) ---
 export {
   YamlDefinitionLoader,
   createYamlDefinitionLoader,
@@ -223,7 +184,7 @@ export {
 } from "./adapters/definition/yaml-definition-loader.ts";
 export type { YamlDefinitionLoaderOptions } from "./adapters/definition/yaml-definition-loader.ts";
 
-// --- S5a OpenWorkflow RuntimePort + Gamma leaf (orchestration; no Pi) ---
+// --- OpenWorkflow RuntimePort + engagement leaf ---
 export {
   OpenWorkflowRuntime,
   defaultEngagementWorkflowSpec,
@@ -261,8 +222,8 @@ export {
   ENGAGEMENT_WAKE_KIND,
   engagementSignalName,
   engagementWakeSignal,
-  isWakeSignalData,
   parseWakeSignalData,
+
 } from "./adapters/openworkflow/signals.ts";
 export type { WakeSignalData } from "./adapters/openworkflow/signals.ts";
 export {
@@ -273,7 +234,8 @@ export type {
   RegisterEngagementWorkflowDeps,
   RegisterEngagementWorkflowResult,
 } from "./adapters/openworkflow/register-engagement.ts";
-// --- S10 Plan leaf (sequential PlanSpec via same Gamma engagement leaf) ---
+
+// --- Plan leaf (sequential PlanSpec via same Gamma engagement leaf) ---
 export {
   runPlanWorkflow,
   planNodeToEngagementInput,
@@ -292,7 +254,8 @@ export type {
   RegisterPlanWorkflowDeps,
   RegisterPlanWorkflowResult,
 } from "./adapters/openworkflow/register-plan.ts";
-// --- ABS-C1 sqlite-only OW RuntimeHost composition ---
+
+// --- ABS-C1 Sqlite-only OW RuntimeHost composition ---
 export {
   createSqliteRuntimeHost,
 } from "./adapters/openworkflow/host.ts";
@@ -302,21 +265,85 @@ export type {
   RuntimeHostWorker,
   RuntimeHostOw,
 } from "./adapters/openworkflow/host.ts";
+
+// --- Pack utilities ---
+export {
+  toPackSnapshot,
+  packPlanHash,
+} from "./adapters/packs/pack-snapshot.ts";
+
+// --- Join stores ---
 export { MemoryJoinStore } from "./adapters/join/memory-store.ts";
 export { SqliteJoinStore } from "./adapters/join/sqlite-store.ts";
 export type { SqliteJoinStoreOptions } from "./adapters/join/sqlite-store.ts";
 
-// --- ABS-A4 MemoryCapabilityStore (tests/fixtures; no FS) ---
-export { MemoryCapabilityStore } from "./adapters/capability/memory-store.ts";
+// ==========================================================================
+// APP LAYER — what the system DOES (orchestration, lifecycle, recipes)
+// ==========================================================================
 
-// --- ABS-A6 CapabilityResolver (merge layers + store.get fail-closed) ---
-export type {
-  CapabilityResolver,
-  CapabilityResolveInput,
-  CapabilityResolveResult,
-} from "./ports/capability-resolver.ts";
+// --- DefaultPresenceFactory + DefaultAgentPresence ---
+// CUT: CapabilityResolver is the sole materialize resolve path (D5)
 export {
-  DefaultCapabilityResolver,
-  createCapabilityResolver,
-} from "./adapters/capability/resolve.ts";
-export type { DefaultCapabilityResolverOptions } from "./adapters/capability/resolve.ts";
+  DefaultPresenceFactory,
+  capabilitySpecFromDefinition,
+  modulePathFromArtifact,
+  packLoadPlanFromCapabilityArtifacts,
+} from "./app/factory.ts";
+export type {
+  DefaultPresenceFactoryDeps,
+  PackSnapshotFn,
+} from "./app/factory.ts";
+export { DefaultAgentPresence } from "./app/presence.ts";
+export type { DefaultAgentPresenceOptions } from "./app/presence.ts";
+export { evaluateSettled, maySettle } from "./app/settled-policy.ts";
+export type {
+  SettledPolicyInput,
+  SettledDecision,
+} from "./app/settled-policy.ts";
+
+// --- Mediation façade (ports only; compose in adapters) ---
+export { Mediation } from "./app/mediation.ts";
+export type {
+  MediationDeps,
+  EngageLocalInput,
+  EngageLocalResult,
+  ReenterInput,
+  ReenterResult,
+} from "./app/mediation.ts";
+
+// --- ABS-B3 experience recipes (thin Mediation wrappers; D0 P6) ---
+export type { Recipe, RecipeContext } from "./app/recipes/types.ts";
+export { solo } from "./app/recipes/solo.ts";
+export type { SoloInput, SoloResult } from "./app/recipes/solo.ts";
+export { reenter } from "./app/recipes/reenter.ts";
+export type {
+  ReenterRecipeInput,
+  ReenterRecipeResult,
+} from "./app/recipes/reenter.ts";
+export { dispatch } from "./app/recipes/dispatch.ts";
+export type {
+  DispatchRecipeInput,
+  DispatchRecipeResult,
+} from "./app/recipes/dispatch.ts";
+export { plan } from "./app/recipes/plan.ts";
+export type { PlanRecipeInput, PlanRecipeResult } from "./app/recipes/plan.ts";
+export { wake } from "./app/recipes/wake.ts";
+export type { WakeRecipeInput, WakeRecipeResult } from "./app/recipes/wake.ts";
+
+// ==========================================================================
+// COMPOSITION — how the system is WIRED together
+// ==========================================================================
+
+export {
+  createLocalMediation,
+  createHostedMediation,
+  resolveCapabilityResolver,
+  resolveHostedJoin,
+  defaultHostedJoinPath,
+} from "./adapters/compose.ts";
+export type {
+  CreateLocalMediationOptions,
+  LocalMediationComposition,
+  CreateHostedMediationOptions,
+  HostedMediationComposition,
+} from "./adapters/compose.ts";

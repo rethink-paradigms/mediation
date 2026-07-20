@@ -48,7 +48,7 @@ export { Mediation } from "./app/mediation.ts";
 `;
     const g = detectSpawnPublicExports(synthetic);
     assert.ok(g.value >= 1);
-    assert.ok(g.details.some((d) => /spawnEngage/i.test(d.match)));
+    assert.ok(g.details.some((d) => /spawnEngage/iu.test(d.match)));
   });
 
   it("detects re-export from adapters/legacy path", () => {

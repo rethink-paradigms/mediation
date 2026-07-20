@@ -156,7 +156,7 @@ describe("OpenWorkflowRuntime (live OW client, no worker)", () => {
           id: "nope",
           nodes: [],
         }),
-      /no planSpec configured/,
+      /no planSpec configured/u,
     );
   });
 

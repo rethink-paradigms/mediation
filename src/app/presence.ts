@@ -35,7 +35,7 @@ export class DefaultAgentPresence implements AgentPresence {
   readonly sessionRef: SessionRef;
   readonly packSnapshot: PackSnapshot;
 
-  private _status: PresenceStatus;
+  private internalStatus: PresenceStatus;
   private readonly handle: EngineSessionHandle;
   private readonly observers = new Set<(event: PresenceEvent) => void>();
   private surface: AttachSurface = { kind: "none" };
@@ -47,7 +47,7 @@ export class DefaultAgentPresence implements AgentPresence {
     this.sessionRef = opts.sessionRef;
     this.packSnapshot = opts.packSnapshot;
     this.handle = opts.handle;
-    this._status = opts.status ?? "idle";
+    this.internalStatus = opts.status ?? "idle";
 
     this.unsubEngine = this.handle.subscribe((e) => {
       if (e.type === "idle") {
@@ -63,12 +63,12 @@ export class DefaultAgentPresence implements AgentPresence {
   }
 
   get status(): PresenceStatus {
-    return this._status;
+    return this.internalStatus;
   }
 
   private setStatus(next: PresenceStatus): void {
-    if (this._status === next) return;
-    this._status = next;
+    if (this.internalStatus === next) return;
+    this.internalStatus = next;
     this.emit({ type: "status", status: next });
   }
 
@@ -83,14 +83,14 @@ export class DefaultAgentPresence implements AgentPresence {
   }
 
   async engage(input: EngageInput): Promise<RunOutcome> {
-    if (this._status === "disposed") {
+    if (this.internalStatus === "disposed") {
       return {
         kind: "failed",
         sessionRef: this.sessionRef,
         error: { message: "Presence is disposed", code: "ENGAGE_FAILED" },
       };
     }
-    if (this._status === "engaging") {
+    if (this.internalStatus === "engaging") {
       return {
         kind: "failed",
         sessionRef: this.sessionRef,
@@ -161,7 +161,7 @@ export class DefaultAgentPresence implements AgentPresence {
   }
 
   async interrupt(kind: InterruptKind, payload?: unknown): Promise<void> {
-    if (this._status === "disposed") {
+    if (this.internalStatus === "disposed") {
       throw new MediationError(
         "ENGAGE_FAILED",
         "Cannot interrupt a disposed presence",
@@ -171,7 +171,7 @@ export class DefaultAgentPresence implements AgentPresence {
   }
 
   async attach(surface: AttachSurface): Promise<void> {
-    if (this._status === "disposed") {
+    if (this.internalStatus === "disposed") {
       throw new MediationError(
         "MATERIALIZE_FAILED",
         "Cannot attach a disposed presence",
@@ -193,7 +193,7 @@ export class DefaultAgentPresence implements AgentPresence {
   }
 
   async dispose(): Promise<void> {
-    if (this._status === "disposed") return;
+    if (this.internalStatus === "disposed") return;
     this.setStatus("disposed");
     this.unsubEngine?.();
     this.unsubEngine = null;
@@ -206,3 +206,4 @@ export class DefaultAgentPresence implements AgentPresence {
     return this.surface;
   }
 }
+

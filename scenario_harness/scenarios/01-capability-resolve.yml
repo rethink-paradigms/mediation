@@ -1,0 +1,16 @@
+name: capability-resolve-observation
+description: |
+  Observe capability-store creation and loading definition.
+
+resources:
+  - type: capability-store
+    as: my-store
+    variant: memory
+
+  - type: definition
+    as: my-def
+    id: case-basic
+    name: case-basic
+    model: deepseek/deepseek-v4-flash
+
+cleanup: false

@@ -5,7 +5,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { PiEngineAdapter } from "../../src/adapters/pi/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
@@ -17,7 +16,7 @@ import { createCapabilityResolver } from "../../src/adapters/capability/resolve.
 import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { packLoadPlanFromFsSpecs } from "../helpers/fs-pack-plan.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const NO_HOME = path.join(FIXTURE_ROOT, "_no_home");
 
@@ -195,7 +194,7 @@ describe("PiEngineAdapter (fake Pi session)", () => {
     const ac = new AbortController();
     const wait = handle.waitUntilIdle({ signal: ac.signal });
     ac.abort();
-    await assert.rejects(wait, /aborted/);
+    await assert.rejects(wait, /aborted/u);
     await handle.dispose();
   });
 });

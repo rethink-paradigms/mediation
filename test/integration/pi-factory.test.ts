@@ -6,7 +6,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import { agentDefForPacks } from "../helpers/agent-def.ts";
 import { createPiPresenceFactory } from "../../src/adapters/wiring.ts";
@@ -14,7 +13,7 @@ import { asSessionRef } from "../../src/domain/presence.ts";
 import { MediationError } from "../../src/domain/errors.ts";
 import { FakePiSession } from "../pi/fake-session.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(HERE, "../../fixtures/packs/case-basic");
 const NO_HOME = path.join(FIXTURE_ROOT, "_no_home");
 

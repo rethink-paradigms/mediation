@@ -1,0 +1,29 @@
+name: Error Boundary - Capability Resolution Failure
+description: Fail-closed architecture gate triggers when capability resolution fails
+
+resources:
+  - type: capability-store
+    as: store
+    variant: memory
+
+  # An empty memory store won't be able to resolve 'nonexistent-ext'
+  - type: definition
+    as: def
+    id: fake-agent
+    name: fake-agent
+    model: dummy
+    store: store
+    inline: true
+    data:
+      name: fake-agent
+      description: ""
+      capabilities:
+        - name: nonexistent-ext
+          type: internal
+
+  - type: presence
+    as: p1
+    definition: def
+    cwd: /tmp/test
+    assert:
+      errorCode: CAPABILITY_RESOLVE_FAILED

@@ -1,0 +1,57 @@
+name: facade
+description: |
+  The mediation product facade API.
+
+states:
+  absent: Uninitialized
+  running: Interaction ongoing
+  completed: Interaction settled
+  parked: Interaction parked
+
+capabilities:
+  engage-local:
+    from: absent
+    to: completed
+    description: Full local presence lifecycle in one call
+    parameters:
+      agentName:
+        required: true
+      rootDir:
+        required: true
+      task:
+        required: true
+    captures:
+      kind: "$.kind"
+      sessionRef: "$.sessionRef"
+      packSnapshotHash: "$.packSnapshotHash"
+      definitionId: "$.definitionId"
+    action:
+      method: engageLocal
+    assert:
+      body:
+        "$.kind": "settled"
+
+  engage-local-with-park:
+    from: absent
+    to: parked
+    description: Full local presence lifecycle with park intent
+    parameters:
+      agentName:
+        required: true
+      rootDir:
+        required: true
+      task:
+        required: true
+      parkIntent:
+        required: false
+        default: true
+    captures:
+      kind: "$.kind"
+      sessionRef: "$.sessionRef"
+      packSnapshotHash: "$.packSnapshotHash"
+      definitionId: "$.definitionId"
+    action:
+      method: engageLocal
+    assert:
+      body:
+        "$.kind": "parked"

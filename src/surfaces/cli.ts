@@ -13,7 +13,7 @@
  */
 
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+
 
 import { createLocalMediation } from "../adapters/compose.ts";
 import { createMediationSurface } from "../adapters/surface/mediation-surface.ts";
@@ -152,16 +152,16 @@ export async function runCli(
 
 const isMain =
   process.argv[1] &&
-  path.resolve(fileURLToPath(import.meta.url)) ===
-    path.resolve(process.argv[1]);
+  path.resolve(import.meta.filename) === path.resolve(process.argv[1]);
 
 if (isMain) {
-  runCli(process.argv.slice(2))
-    .then((code) => {
-      process.exitCode = code;
-    })
-    .catch((err) => {
-      console.error(err instanceof Error ? err.message : err);
-      process.exitCode = 1;
-    });
+  try {
+    const code = await runCli(process.argv.slice(2));
+    process.exitCode = code;
+  } catch (err) {
+    console.error(err instanceof Error ? err.message : err);
+    process.exitCode = 1;
+  }
 }
+
+

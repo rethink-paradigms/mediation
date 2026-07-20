@@ -1,0 +1,16 @@
+name: Join Correlation
+description: Durable dispatch, then verify JoinStore recorded correct correlation
+resources:
+  - type: capability-store
+    as: store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: engagement
+    as: dispatch-park
+    agentName: case-basic
+    rootDir: fixtures/definition/case-basic
+    task: "durable park for join"
+    parkIntent: true
+    then:
+      - get-join

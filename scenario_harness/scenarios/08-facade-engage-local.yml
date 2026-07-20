@@ -1,0 +1,15 @@
+name: Facade engageLocal Product API
+description: Test the actual product API that surfaces call
+resources:
+  - type: capability-store
+    as: store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: facade
+    as: api
+    agentName: case-basic
+    rootDir: fixtures/definition/case-basic
+    task: "do local test"
+    then:
+      - engage-local

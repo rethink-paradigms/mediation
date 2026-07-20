@@ -96,7 +96,7 @@ describe("SqliteJoinStore", () => {
     const join = new SqliteJoinStore({ path: ":memory:" });
     await assert.rejects(
       () => join.updateStatus(asRunId("nope"), "failed"),
-      /no record/,
+      /no record/u,
     );
     join.close();
   });

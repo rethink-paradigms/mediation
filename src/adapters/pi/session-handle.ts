@@ -118,7 +118,6 @@ export class PiEngineSessionHandle implements EngineSessionHandle {
     const cont = this.session.agent?.continue;
     if (typeof cont === "function") {
       await cont.call(this.session.agent);
-      return;
     }
     // No agent.continue: if already streaming, waitUntilIdle will settle;
     // if idle, no-op continue (already settled).
@@ -260,3 +259,4 @@ export function sessionRefFromPi(session: PiSessionSurface): SessionRef {
   }
   return asSessionRef(session.sessionId);
 }
+

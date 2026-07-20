@@ -8,7 +8,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { fileURLToPath } from "node:url";
 
 import {
   YamlDefinitionLoader,
@@ -17,7 +16,7 @@ import {
 } from "../../src/adapters/definition/yaml-definition-loader.ts";
 import { MediationError } from "../../src/domain/errors.ts";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
+const HERE = import.meta.dirname;
 const FIXTURE_ROOT = path.resolve(
   HERE,
   "../../fixtures/definition/case-basic",
@@ -106,7 +105,7 @@ describe("YamlDefinitionLoader — fail-closed", () => {
       (err: unknown) => {
         assert.ok(err instanceof MediationError);
         assert.equal(err.code, "DEFINITION_NOT_FOUND");
-        assert.match(err.message, /agent\.yaml/);
+        assert.match(err.message, /agent\.yaml/u);
         return true;
       },
     );
@@ -137,7 +136,7 @@ describe("YamlDefinitionLoader — fail-closed", () => {
       (err: unknown) => {
         assert.ok(err instanceof MediationError);
         assert.equal(err.code, "DEFINITION_INVALID");
-        assert.match(err.message, /name|model/i);
+        assert.match(err.message, /name|model/iu);
         return true;
       },
     );
@@ -160,7 +159,7 @@ describe("YamlDefinitionLoader — fail-closed", () => {
       (err: unknown) => {
         assert.ok(err instanceof MediationError);
         assert.equal(err.code, "DEFINITION_INVALID");
-        assert.match(err.message, /prompt file not found/);
+        assert.match(err.message, /prompt file not found/u);
         return true;
       },
     );

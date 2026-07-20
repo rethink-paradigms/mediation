@@ -1,0 +1,141 @@
+{
+  "scenario": "Join Correlation",
+  "description": "Durable dispatch, then verify JoinStore recorded correct correlation",
+  "plan": {
+    "scenario": "Join Correlation",
+    "description": "Durable dispatch, then verify JoinStore recorded correct correlation",
+    "operations": [
+      {
+        "id": "op-1",
+        "type": "capability-store",
+        "resource": "store",
+        "capability": "create",
+        "params": {
+          "variant": "fs",
+          "projectRoot": "fixtures/packs/case-basic"
+        },
+        "captures": [
+          "kind"
+        ]
+      },
+      {
+        "id": "op-2",
+        "type": "engagement",
+        "resource": "dispatch-park",
+        "capability": "create",
+        "params": {
+          "agentName": "case-basic",
+          "rootDir": "fixtures/definition/case-basic",
+          "task": "durable park for join",
+          "parkIntent": true
+        },
+        "captures": [
+          "runId"
+        ]
+      },
+      {
+        "id": "op-3",
+        "type": "engagement",
+        "resource": "dispatch-park",
+        "capability": "get-join",
+        "params": {
+          "runId": "{{ op-2.runId }}"
+        },
+        "captures": [
+          "sessionRef",
+          "packSnapshotHash",
+          "status"
+        ]
+      }
+    ],
+    "cleanup": []
+  },
+  "observations": [
+    {
+      "id": "op-1",
+      "capability": "capability-store:create",
+      "status": "ANOMALY",
+      "duration": 2,
+      "captures": {
+        "kind": "fs"
+      },
+      "rawOutput": {
+        "kind": "fs"
+      },
+      "anomalies": [
+        {
+          "field": "$.kind",
+          "expected": "memory",
+          "actual": "fs",
+          "message": "Soft expectation mismatch at $.kind: expected \"memory\", got \"fs\""
+        }
+      ],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "ready",
+      "startedAt": "2026-07-20T18:01:07.272Z",
+      "completedAt": "2026-07-20T18:01:07.273Z"
+    },
+    {
+      "id": "op-2",
+      "capability": "engagement:create",
+      "status": "PASSED",
+      "duration": 0,
+      "captures": {
+        "runId": "run-9r98xh9"
+      },
+      "rawOutput": {
+        "runId": "run-9r98xh9"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "absent",
+      "stateAfter": "running",
+      "startedAt": "2026-07-20T18:01:07.274Z",
+      "completedAt": "2026-07-20T18:01:07.274Z"
+    },
+    {
+      "id": "op-3",
+      "capability": "engagement:get-join",
+      "status": "PASSED",
+      "duration": 0,
+      "captures": {
+        "sessionRef": "mock-session-ref",
+        "packSnapshotHash": "mock-hash",
+        "status": "parked"
+      },
+      "rawOutput": {
+        "sessionRef": "mock-session-ref",
+        "packSnapshotHash": "mock-hash",
+        "status": "parked"
+      },
+      "anomalies": [],
+      "annotations": [],
+      "stateBefore": "running",
+      "stateAfter": "running",
+      "startedAt": "2026-07-20T18:01:07.274Z",
+      "completedAt": "2026-07-20T18:01:07.274Z"
+    }
+  ],
+  "cleanupObservations": [],
+  "annotations": [],
+  "captures": {
+    "op-1": {
+      "kind": "fs"
+    },
+    "op-2": {
+      "runId": "run-9r98xh9"
+    },
+    "op-3": {
+      "sessionRef": "mock-session-ref",
+      "packSnapshotHash": "mock-hash",
+      "status": "parked"
+    }
+  },
+  "currentOpIndex": 3,
+  "cleanupIndex": 0,
+  "auth": null,
+  "status": "completed",
+  "startedAt": "2026-07-20T18:01:06.558Z",
+  "updatedAt": "2026-07-20T18:01:07.274Z"
+}

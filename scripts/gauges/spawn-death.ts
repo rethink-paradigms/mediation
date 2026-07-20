@@ -8,19 +8,17 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PKG_ROOT = path.resolve(__dirname, "../..");
+const PKG_ROOT = path.resolve(import.meta.dirname, "../..");
 const INDEX = path.join(PKG_ROOT, "src", "index.ts");
 
 /** Public export names that constitute a spawn / runner-as-core second door. */
 const FORBIDDEN_EXPORT_NAME =
-  /^(spawn|Spawn|SPAWN)|SpawnEngage|spawnEngage|LegacySpawn|legacySpawn|SpawnAdapter|spawnAdapter|RunAgent|runAgent|RunnerAsCore|runnerAsCore/;
+  /^(spawn|Spawn|SPAWN)|SpawnEngage|spawnEngage|LegacySpawn|legacySpawn|SpawnAdapter|spawnAdapter|RunAgent|runAgent|RunnerAsCore|runnerAsCore/u;
 
 /** Re-export path fragments that must not appear on the public index. */
 const FORBIDDEN_FROM_PATH =
-  /adapters\/legacy(?:\/|["'])|spawn-engage|\/spawn(?:\.|\/|["'])/i;
+  /adapters\/legacy(?:\/|["'])|spawn-engage|\/spawn(?:\.|\/|["'])/iu;
 
 export type SpawnDeathDetail = {
   kind: "export_name" | "from_path" | "export_line";
@@ -39,12 +37,12 @@ export type SpawnDeathGauge = {
  */
 export function detectSpawnPublicExports(indexSource: string): SpawnDeathGauge {
   const details: SpawnDeathDetail[] = [];
-  const lines = indexSource.split(/\r?\n/);
+  const lines = indexSource.split(/\r?\n/u);
 
   // export { A, B as C } from "..."
   // export type { A } from "..."
   const blockRe =
-    /export\s+(?:type\s+)?\{([^}]+)\}\s*(?:from\s+["']([^"']+)["'])?/g;
+    /export\s+(?:type\s+)?\{([^}]+)\}\s*(?:from\s+["']([^"']+)["'])?/gu;
   let m: RegExpExecArray | null;
   while ((m = blockRe.exec(indexSource)) !== null) {
     const body = m[1];
@@ -53,9 +51,9 @@ export function detectSpawnPublicExports(indexSource: string): SpawnDeathGauge {
       for (const part of body.split(",")) {
         const raw = part.trim();
         if (!raw || raw.startsWith("//")) continue;
-        const asMatch = raw.match(/^(\w+)\s+as\s+(\w+)$/);
+        const asMatch = raw.match(/^(\w+)\s+as\s+(\w+)$/u);
         const publicName =
-          asMatch?.[2] ?? raw.match(/^(\w+)/)?.[1] ?? undefined;
+          asMatch?.[2] ?? raw.match(/^(\w+)/u)?.[1] ?? undefined;
         if (publicName !== undefined && FORBIDDEN_EXPORT_NAME.test(publicName)) {
           details.push({
             kind: "export_name",
@@ -86,7 +84,7 @@ export function detectSpawnPublicExports(indexSource: string): SpawnDeathGauge {
 
   // export class Foo / export function spawnEngage / etc.
   const declRe =
-    /export\s+(?:declare\s+)?(?:abstract\s+)?(?:class|function|const|let|var|enum|interface|type)\s+(\w+)/g;
+    /export\s+(?:declare\s+)?(?:abstract\s+)?(?:class|function|const|let|var|enum|interface|type)\s+(\w+)/gu;
   while ((m = declRe.exec(indexSource)) !== null) {
     const name = m[1];
     if (name !== undefined && FORBIDDEN_EXPORT_NAME.test(name)) {
@@ -96,36 +94,27 @@ export function detectSpawnPublicExports(indexSource: string): SpawnDeathGauge {
 
   // Line-level: any export … from … legacy/spawn (comments stripped for code check)
   lines.forEach((line, i) => {
-    const code = line.replace(/\/\/.*$/, "").replace(/\/\*[\s\S]*?\*\//g, "");
-    if (!/\bexport\b/.test(code)) return;
-    if (FORBIDDEN_FROM_PATH.test(code) || /\bexport\s+.*\bspawnEngage\b/i.test(code)) {
-      // Avoid double-counting pure comments; code path already matched
-      if (
-        FORBIDDEN_FROM_PATH.test(code) ||
-        FORBIDDEN_EXPORT_NAME.test(code)
-      ) {
-        // Only add line detail if we already have a structural hit or clear export
-        if (
-          /export\s+.*from\s+["'][^"']*(?:legacy|spawn-engage|\/spawn)/i.test(
-            code,
-          ) ||
-          /export\s+\{[^}]*\b(?:spawn|SpawnEngage|spawnEngage|LegacySpawn)\b/i.test(
-            code,
-          )
-        ) {
-          const already = details.some(
-            (d) =>
-              d.line === i + 1 ||
-              (d.kind === "from_path" && code.includes(d.match)),
-          );
-          if (!already) {
-            details.push({
-              kind: "export_line",
-              match: line.trim(),
-              line: i + 1,
-            });
-          }
-        }
+    const code = line.replaceAll(/\/\/.*$/gu, "").replaceAll(/\/\*[\s\S]*?\*\//gu, "");
+    if (!/\bexport\b/u.test(code)) return;
+    if (
+      (FORBIDDEN_FROM_PATH.test(code) || /\bexport\s+.*\bspawnEngage\b/iu.test(code)) &&
+      (FORBIDDEN_FROM_PATH.test(code) || FORBIDDEN_EXPORT_NAME.test(code)) &&
+      (
+        /export\s+.*from\s+["'][^"']*(?:legacy|spawn-engage|\/spawn)/iu.test(code) ||
+        /export\s+\{[^}]*\b(?:spawn|SpawnEngage|spawnEngage|LegacySpawn)\b/iu.test(code)
+      )
+    ) {
+      const already = details.some(
+        (d) =>
+          d.line === i + 1 ||
+          (d.kind === "from_path" && code.includes(d.match)),
+      );
+      if (!already) {
+        details.push({
+          kind: "export_line",
+          match: line.trim(),
+          line: i + 1,
+        });
       }
     }
   });
@@ -160,3 +149,4 @@ if (
     process.exitCode = 1;
   }
 }
+

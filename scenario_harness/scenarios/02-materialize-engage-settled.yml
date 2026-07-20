@@ -1,0 +1,25 @@
+name: materialize-engage-settled-observation
+description: |
+  Observe agent presence materialization and a simple engage.
+
+resources:
+  - type: capability-store
+    as: my-store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: definition
+    as: my-def
+    id: case-basic
+    name: case-basic
+    model: deepseek/deepseek-v4-flash
+
+  - type: presence
+    as: my-presence
+    definition: my-def
+    mode: headless
+    then:
+      - engage
+    text: "hello world"
+
+cleanup: true

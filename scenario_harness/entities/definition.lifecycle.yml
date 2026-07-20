@@ -1,0 +1,37 @@
+name: definition
+description: |
+  An AgentDefinition specifying model, prompt, and capabilities.
+
+states:
+  absent: Definition not loaded
+  loaded: Definition parsed and validated
+
+capabilities:
+  create:
+    from: absent
+    to: loaded
+    description: Load agent definition from YAML fixture or config object
+    parameters:
+      id:
+        required: true
+        description: Unique agent definition identifier
+      name:
+        required: true
+        description: Friendly name of the agent
+      model:
+        required: true
+        description: Target model provider/id (e.g. deepseek/deepseek-v4-flash)
+      prompt:
+        required: false
+        description: System prompt content or filepath
+      rootDir:
+        required: false
+        description: Root directory for the agent definition
+    captures:
+      id: "$.id"
+      name: "$.name"
+    action:
+      method: loadDefinition
+    assert:
+      body:
+        "$.id": "is not null"

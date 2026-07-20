@@ -1,0 +1,28 @@
+name: capability-store
+description: |
+  A CapabilityStore backs capability resolution.
+  Memory or FS implementations.
+
+states:
+  absent: Not created
+  ready: Loaded and ready to resolve capabilities
+
+capabilities:
+  create:
+    from: absent
+    to: ready
+    description: Create a capability store (Memory or FS variant)
+    parameters:
+      variant:
+        required: true
+        description: '"memory" or "fs"'
+      projectRoot:
+        required: false
+        description: Root directory for FS variant
+    captures:
+      kind: "$.kind"
+    action:
+      method: createCapabilityStore
+      args: [variant, projectRoot]
+    expected:
+      "$.kind": "memory"

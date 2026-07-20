@@ -144,7 +144,8 @@ function mapOwStatus(run: {
       return { state: "canceled" };
     default:
       return {
-        state: "failed",
+        state: "unknown",
+        originalStatus: run.status,
         error: { message: `unknown OW status: ${String(run.status)}` },
       };
   }
@@ -234,7 +235,8 @@ export class OpenWorkflowRuntime implements RuntimePort {
       if (
         status.state === "completed" ||
         status.state === "failed" ||
-        status.state === "canceled"
+        status.state === "canceled" ||
+        status.state === "unknown"
       ) {
         return status;
       }
@@ -253,5 +255,8 @@ export class OpenWorkflowRuntime implements RuntimePort {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
+
+
+
