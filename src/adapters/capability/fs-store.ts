@@ -144,7 +144,13 @@ function artifactFromResolved(found: FsResolvedModule): CapabilityArtifact {
 
 /**
  * Filesystem CapabilityStore. Identity is the bare id; path only in entry/locator.
- * Version is not stored on disk — opts.version is ignored (unversioned FS layout).
+ *
+ * Version/digest: the FS layout is unversioned — a file path carries no version
+ * metadata, so `get` forwards `opts` to callers but cannot filter by version.
+ * Versioned lookups belong to versioned media (registry / memory); the
+ * composite store walks registry → fs and versioned stores honor the selector
+ * while fs serves as the unversioned fallback (D5 L1: durable snapshots prefer
+ * id + source + digest — the fs adapter does not invent versions).
  */
 export class FsCapabilityStore implements CapabilityStore {
   private readonly projectRoot: string;

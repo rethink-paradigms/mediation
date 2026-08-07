@@ -80,8 +80,10 @@ export type AgentDefinition = {
   readonly maxCostPerDayUsd?: number;
   readonly maxConcurrency?: number;
   readonly taskTimeoutMinutes?: number;
-  /** Optional family extend path (harness extends). */
+  /** Optional family extend ref (harness extends; name-or-path). */
   readonly extends?: string;
+  /** Optional root layer ref (name-or-path; loader rootConfigPath fallback). */
+  readonly root?: string;
   /** Opaque residual for forward-compatible fields. */
   readonly meta?: Readonly<Record<string, unknown>>;
 };

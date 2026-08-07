@@ -20,10 +20,21 @@ import { createEngineRegistry } from "./engine-registry.ts";
 import type { EngineRegistry } from "../ports/engine.ts";
 import { Mediation, type MediationDeps } from "../app/mediation.ts";
 import type { CapabilityResolver } from "../ports/capability-resolver.ts";
-import type { CapabilityStore } from "../ports/capability-store.ts";
+import type {
+  CapabilityPublisher,
+  CapabilityStore,
+} from "../ports/capability-store.ts";
 import type { JoinStore } from "../ports/join.ts";
 import type { RuntimePort } from "../ports/runtime.ts";
 import type { FsCapabilityStoreOptions } from "./capability/fs-store.ts";
+import {
+  CompositeCapabilityStore,
+  createCompositeCapabilityStore,
+} from "./capability/composite-store.ts";
+import { createFsCapabilityStore } from "./capability/fs-store.ts";
+import { MemoryCapabilityStore } from "./capability/memory-store.ts";
+import { createCapabilityResolver } from "./capability/resolve.ts";
+import { createRegistryCapabilityStore, RegistryCapabilityStore } from "./capability/registry-store.ts";
 import {
   createYamlDefinitionLoader,
   type YamlDefinitionLoaderOptions,
@@ -104,6 +115,19 @@ export type CreateLocalMediationOptions = {
    * projectRoot is known.
    */
   readonly fsStoreOptions?: Omit<FsCapabilityStoreOptions, "projectRoot">;
+  /**
+   * Ordered CapabilityStore chain for a CompositeCapabilityStore (D5 L2/L4).
+   * First hit wins. Wins over `capabilityStore` when both are set.
+   * Publish routes to the first chain store that implements CapabilityPublisher
+   * (the registry at position 0 in the default chain).
+   */
+  readonly capabilityStores?: readonly CapabilityStore[];
+  /**
+   * In-process registry for the DEFAULT composite chain (registry → fs).
+   * When omitted, compose creates a fresh RegistryCapabilityStore. Ignored
+   * when capabilityResolver / capabilityStore / capabilityStores are set.
+   */
+  readonly registryStore?: RegistryCapabilityStore;
 };
 
 /**
@@ -113,15 +137,107 @@ export type CreateLocalMediationOptions = {
  */
 export { resolveCapabilityResolver };
 
+/**
+ * Composite-aware default resolver (D5 L2/L4). Resolution policy:
+ *   1. explicit CapabilityResolver wins (no chain introspection);
+ *   2. explicit single CapabilityStore → wrapped;
+ *   3. explicit ordered chain (capabilityStores) → composite, first hit wins,
+ *      publish routes to the first publisher-capable store;
+ *   4. projectRoot known → composite [registry, fs] — published capabilities
+ *      win, legacy FS search remains the fallback (backward compat);
+ *   5. otherwise an empty MemoryCapabilityStore (materialize with extensions
+ *      fails closed).
+ * Returns the resolver plus the store chain / default registry for tests and
+ * diagnostics.
+ */
+export function resolveCapabilityResolverWithStores(opts: {
+  readonly capabilityResolver?: CapabilityResolver;
+  readonly capabilityStore?: CapabilityStore;
+  readonly capabilityStores?: readonly CapabilityStore[];
+  readonly projectRoot?: string;
+  readonly fsStoreOptions?: Omit<FsCapabilityStoreOptions, "projectRoot">;
+  readonly registryStore?: RegistryCapabilityStore;
+}): {
+  readonly resolver: CapabilityResolver;
+  readonly stores: readonly CapabilityStore[];
+  readonly registry: RegistryCapabilityStore | undefined;
+} {
+  if (opts.capabilityResolver !== undefined) {
+    return { resolver: opts.capabilityResolver, stores: [], registry: undefined };
+  }
+  if (opts.capabilityStore !== undefined) {
+    return {
+      resolver: createCapabilityResolver(opts.capabilityStore),
+      stores: [opts.capabilityStore],
+      registry: undefined,
+    };
+  }
+  if (opts.capabilityStores !== undefined && opts.capabilityStores.length > 0) {
+    const composite = createCompositeCapabilityStore({
+      stores: opts.capabilityStores,
+      publisher: firstPublisherOf(opts.capabilityStores),
+    });
+    return {
+      resolver: createCapabilityResolver(composite),
+      stores: [...opts.capabilityStores],
+      registry: undefined,
+    };
+  }
+  if (opts.projectRoot !== undefined) {
+    const registry = opts.registryStore ?? createRegistryCapabilityStore();
+    const fs = createFsCapabilityStore({
+      projectRoot: opts.projectRoot,
+      ...opts.fsStoreOptions,
+    });
+    const composite = new CompositeCapabilityStore({
+      stores: [registry, fs],
+      publisher: registry,
+    });
+    return {
+      resolver: createCapabilityResolver(composite),
+      stores: [registry, fs],
+      registry,
+    };
+  }
+  const memory = new MemoryCapabilityStore();
+  return { resolver: createCapabilityResolver(memory), stores: [memory], registry: undefined };
+}
+
+/** First chain store that implements CapabilityPublisher (publish target). */
+function firstPublisherOf(
+  stores: readonly CapabilityStore[],
+): CapabilityPublisher | undefined {
+  for (const store of stores) {
+    const maybePublisher = store as unknown as CapabilityPublisher;
+    if (typeof maybePublisher.publish === "function") {
+      return maybePublisher;
+    }
+  }
+  return undefined;
+}
+
 export type LocalMediationComposition = {
   readonly mediation: Mediation;
   readonly join: JoinStore;
+  /**
+   * Ordered capability store chain behind the resolver (empty when an explicit
+   * CapabilityResolver was injected). Default: [registry, fs].
+   */
+  readonly capabilityStores: readonly CapabilityStore[];
+  /**
+   * The in-process registry created by the default composite chain (undefined
+   * when resolver/store/chain were injected explicitly). Builder agents
+   * publish here; the composite resolves through it before falling to fs.
+   */
+  readonly registry: RegistryCapabilityStore | undefined;
 };
 
 type MindWiring = {
   readonly loader: MediationDeps["loader"];
   readonly factory: MediationDeps["factory"];
   readonly join: JoinStore;
+  readonly capabilityStores: readonly CapabilityStore[];
+  readonly registry: RegistryCapabilityStore | undefined;
 };
 
 /** Composition default engine: explicit wins; else legacy mockEngine mapping. */
@@ -136,12 +252,18 @@ export function resolveCompositionDefaultEngine(opts: {
 function wireMind(opts: CreateLocalMediationOptions): MindWiring {
   const loader = createYamlDefinitionLoader(opts.loaderOptions);
   const join = opts.join ?? new MemoryJoinStore();
-  const capabilityResolver = resolveCapabilityResolver({
-    capabilityResolver: opts.capabilityResolver,
-    capabilityStore: opts.capabilityStore,
-    projectRoot: opts.projectRoot,
-    fsStoreOptions: opts.fsStoreOptions,
-  });
+  const {
+    resolver: capabilityResolver,
+    stores: capabilityStores,
+    registry: capabilityRegistry,
+  } = resolveCapabilityResolverWithStores({
+      capabilityResolver: opts.capabilityResolver,
+      capabilityStore: opts.capabilityStore,
+      capabilityStores: opts.capabilityStores,
+      projectRoot: opts.projectRoot,
+      fsStoreOptions: opts.fsStoreOptions,
+      registryStore: opts.registryStore,
+    });
 
   // Legacy `pi` composition options → custom pi factory in the registry
   // (keeps PiEngineAdapter sessionFactory/auth/inMemory/log wiring intact).
@@ -170,7 +292,7 @@ function wireMind(opts: CreateLocalMediationOptions): MindWiring {
     capabilityResolver,
   });
 
-  return { loader, factory, join };
+  return { loader, factory, join, capabilityStores, registry: capabilityRegistry };
 }
 
 /**
@@ -181,7 +303,7 @@ function wireMind(opts: CreateLocalMediationOptions): MindWiring {
 export function createLocalMediation(
   opts: CreateLocalMediationOptions = {},
 ): LocalMediationComposition {
-  const { loader, factory, join } = wireMind(opts);
+  const { loader, factory, join, capabilityStores, registry } = wireMind(opts);
 
   const mediation = new Mediation({
     loader,
@@ -190,7 +312,7 @@ export function createLocalMediation(
     runtime: opts.runtime,
   });
 
-  return { mediation, join };
+  return { mediation, join, capabilityStores, registry };
 }
 
 /**
@@ -238,6 +360,10 @@ export type HostedMediationComposition = {
   readonly host: SqliteRuntimeHost;
   readonly runtime: RuntimePort;
   readonly worker: RuntimeHostWorker;
+  /** Ordered capability store chain behind the resolver (see LocalMediationComposition). */
+  readonly capabilityStores: readonly CapabilityStore[];
+  /** In-process registry of the default composite chain (see LocalMediationComposition). */
+  readonly registry: RegistryCapabilityStore | undefined;
   /** Stop worker (if started) + OW sqlite backend. */
   stop(): Promise<void>;
 };
@@ -264,7 +390,7 @@ export function createHostedMediation(
   opts: CreateHostedMediationOptions,
 ): HostedMediationComposition {
   // Hosted join is product-policy (PRODUCT-1); wireMind join is unused here.
-  const { loader, factory } = wireMind(opts);
+  const { loader, factory, capabilityStores, registry } = wireMind(opts);
   const { join, ownedSqliteJoin } = resolveHostedJoin({
     join: opts.join,
     dbPath: opts.dbPath,
@@ -324,6 +450,8 @@ export function createHostedMediation(
     host,
     runtime: host.runtime,
     worker: host.worker,
+    capabilityStores,
+    registry,
     stop: async () => {
       await host.stop();
       ownedSqliteJoin?.close();

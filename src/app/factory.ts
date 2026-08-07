@@ -10,7 +10,10 @@ import type {
   CapabilityDiagnostic,
   CapabilityPlan,
 } from "../domain/capability.ts";
-import type { CapabilitySpec } from "../domain/config-layer.ts";
+import type {
+  CapabilitySpec,
+  ConfigLayer,
+} from "../domain/config-layer.ts";
 import { resolveEngineKind, type EngineKind } from "../domain/engine.ts";
 import type { AgentDefinition } from "../domain/definition.ts";
 import { MediationError } from "../domain/errors.ts";
@@ -69,9 +72,12 @@ const PACK_SOURCES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Agent-layer CapabilitySpec from inert definition
- * (extensions + tools/skills + engine). The engine field makes the agent's
- * declared engine part of the config layer the factory resolves against.
+ * CapabilitySpec from the (already MERGED) inert definition
+ * (extensions + tools/skills + engine). D5 L3: the layered YamlDefinitionLoader
+ * merges root → family → agent on DISK and the resulting AgentDefinition
+ * carries the merged extensions / tools / skills / engine — so this spec IS
+ * the merged config layer, not just the agent layer. The engine field makes
+ * the effective engine part of the config layer the factory resolves against.
  */
 export function capabilitySpecFromDefinition(
   definition: AgentDefinition,
@@ -84,6 +90,20 @@ export function capabilitySpecFromDefinition(
     ...(definition.skills !== undefined ? { skills: definition.skills } : {}),
     ...(definition.engine !== undefined ? { engine: definition.engine } : {}),
   };
+}
+
+/**
+ * Config layers for the materialize resolve path (D5 L3 wiring point).
+ *
+ * The definition is the merged root → family → agent result from the layered
+ * loader; `capabilitySpecFromDefinition` therefore carries the MERGED spec.
+ * The resolver still receives an explicit layer list (kind "agent") so the
+ * port contract stays uniform — the merge already happened in the loader.
+ */
+export function capabilityLayersFromDefinition(
+  definition: AgentDefinition,
+): readonly ConfigLayer[] {
+  return [{ kind: "agent", spec: capabilitySpecFromDefinition(definition) }];
 }
 
 function packSourceFromLocator(
@@ -266,13 +286,16 @@ export class DefaultPresenceFactory implements PresenceFactory {
     return presence;
   }
 
-  /** Sole path: CapabilityResolver → pack plan adapter (no PackResolver fork). */
+  /**
+   * Sole path: CapabilityResolver → pack plan adapter (no PackResolver fork).
+   * Layers come from the MERGED definition (loader merged root→family→agent);
+   * the merged extensions/tools/skills/engine resolve through the store chain.
+   */
   private async resolvePackPlan(
     definition: AgentDefinition,
   ): Promise<PackLoadPlan> {
-    const spec = capabilitySpecFromDefinition(definition);
     const result = await this.capabilityResolver.resolve({
-      layers: [{ kind: "agent", spec }],
+      layers: capabilityLayersFromDefinition(definition),
     });
     // Always adapt artifacts so path-missing surfaces as fail-closed even when
     // store hits returned ok plan with non-path entries.

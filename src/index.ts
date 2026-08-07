@@ -476,3 +476,7 @@ export {
   KnowledgeService,
   createKnowledgeService,
 } from "./adapters/knowledge/service.ts";
+
+// Composition slice (issue #4): capability composition
+export { CompositeCapabilityStore, createCompositeCapabilityStore } from "./adapters/capability/composite-store.ts";
+export type { CompositeCapabilityStoreOptions } from "./adapters/capability/composite-store.ts";
