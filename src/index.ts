@@ -378,3 +378,81 @@ export type {
   CreateHostedMediationOptions,
   HostedMediationComposition,
 } from "./adapters/compose.ts";
+
+// ==========================================================================
+// DOMAIN-M — capability knowledge-model (issue #2, first pour)
+// Pure domain graph + six operations + KnowledgePort + catalog adapters.
+// Medium-independent: identities are ids, never paths (D5).
+// ==========================================================================
+
+// --- Domain M types + graph + operations (pure, no engine imports) ---
+export {
+  asCapabilityIdentity,
+  isCapabilityIdentity,
+  intentText,
+  intentWeight,
+  intentSuggests,
+  CAPABILITY_IDENTITY_PATTERN,
+  createGraph,
+  findNode,
+  requireNode,
+  incidentEdges,
+  childrenViaGeneralizes,
+  outgoingEdges,
+  nodesForEngine,
+  UnknownCapabilityError,
+  listCapabilities,
+  describeCapability,
+  resolveIntent,
+  validateConfig,
+  composeCapabilities,
+  explainConfig,
+  signatureMatchScore,
+} from "./domain/knowledge/index.ts";
+export type {
+  CapabilityIdentity,
+  CapabilityValue,
+  CapabilityConfig,
+  EnumValue,
+  CapabilityDomain,
+  IntentSignature,
+  CapabilityNode,
+  EdgeType,
+  EdgeCondition,
+  CapabilityEdge,
+  IncidentEdge,
+  GraphMetadata,
+  CapabilityGraph,
+  ListFilter,
+  NodeSummary,
+  IntentMatch,
+  ResolveOptions,
+  ResolveResult,
+  ViolationSeverity,
+  ValidationViolation,
+  ValidationResult,
+  EmergentBehavior,
+  SideEffect,
+  RequiredCapability,
+  ComposeResult,
+  ExplainStatement,
+  ExplainResult,
+} from "./domain/knowledge/index.ts";
+
+// --- KnowledgePort (app/surfaces consume this) ---
+export type { KnowledgePort, NodeDescription } from "./ports/knowledge.ts";
+
+// --- Catalog adapters (real Pi/Prime/Mock capability graphs) ---
+export {
+  buildPiCatalog,
+  buildPrimeCatalog,
+  buildMockCatalog,
+  buildCatalog,
+  DEFAULT_CATALOG,
+} from "./adapters/knowledge/catalog.ts";
+
+// --- KnowledgeService (KnowledgePort implementation) ---
+export {
+  KnowledgeService,
+  createKnowledgeService,
+} from "./adapters/knowledge/service.ts";
