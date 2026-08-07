@@ -17,7 +17,7 @@ import type {
   SessionRef,
 } from "../domain/presence.ts";
 import type { EngineSessionHandle } from "../ports/engine.ts";
-import { evaluateSettled } from "./settled-policy.ts";
+import { outcomeFromError, outcomeFromIdle } from "./outcomes.ts";
 
 export type DefaultAgentPresenceOptions = {
   readonly id: string;
@@ -84,21 +84,18 @@ export class DefaultAgentPresence implements AgentPresence {
 
   async engage(input: EngageInput): Promise<RunOutcome> {
     if (this.internalStatus === "disposed") {
-      return {
-        kind: "failed",
+      return outcomeFromError({
         sessionRef: this.sessionRef,
-        error: { message: "Presence is disposed", code: "ENGAGE_FAILED" },
-      };
+        error: "Presence is disposed",
+        code: "ENGAGE_FAILED",
+      });
     }
     if (this.internalStatus === "engaging") {
-      return {
-        kind: "failed",
+      return outcomeFromError({
         sessionRef: this.sessionRef,
-        error: {
-          message: "Presence is already engaging",
-          code: "ENGAGE_FAILED",
-        },
-      };
+        error: "Presence is already engaging",
+        code: "ENGAGE_FAILED",
+      });
     }
 
     this.setStatus("engaging");
@@ -118,51 +115,34 @@ export class DefaultAgentPresence implements AgentPresence {
       }
 
       const idle = await this.handle.waitUntilIdle();
-      const parkIntent = input.parkIntent === true;
-      const decision = evaluateSettled({ idle, parkIntent });
-
-      if (!decision.allow) {
-        if (decision.reason === "park_intent") {
-          this.setStatus("parked");
-          const reason = input.parkReason ?? "park_intent";
-          return {
-            kind: "parked",
-            sessionRef: this.sessionRef,
-            reason,
-            resumeToken: `park:${this.sessionRef}:${Date.now().toString(36)}`,
-            payload: { text: input.text, mode },
-          };
-        }
-        this.setStatus("idle");
-        return {
-          kind: "failed",
-          sessionRef: this.sessionRef,
-          error: {
-            message: `Settled policy denied: ${decision.reason}`,
-            code: "POLICY_VIOLATION",
-          },
-        };
-      }
-
-      this.setStatus("idle");
-      return {
-        kind: "settled",
+      // OutcomeMapper (software-architecture §4.3): idle + park intent →
+      // Settled | Parked | Failed (policy denial) in one normalization point.
+      const outcome = outcomeFromIdle({
         sessionRef: this.sessionRef,
-      };
+        idle,
+        parkIntent: input.parkIntent === true,
+        parkReason: input.parkReason,
+        text: input.text,
+        mode,
+      });
+      if (outcome.kind === "parked") {
+        this.setStatus("parked");
+      } else {
+        this.setStatus("idle");
+      }
+      return outcome;
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
       if (this.status !== "disposed") {
         this.setStatus("idle");
       }
-      return {
-        kind: "failed",
+      // OutcomeMapper: thrown engine error → Failed (code ENGAGE_FAILED,
+      // raw error preserved as cause for in-process diagnostics).
+      return outcomeFromError({
         sessionRef: this.sessionRef,
-        error: {
-          message,
-          code: "ENGAGE_FAILED",
-          cause: err,
-        },
-      };
+        error: err,
+        code: "ENGAGE_FAILED",
+        withCause: true,
+      });
     }
   }
 
