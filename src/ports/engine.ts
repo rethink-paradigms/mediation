@@ -36,7 +36,13 @@ export type OpenSessionRequest = {
 export interface EngineSessionHandle {
   readonly sessionRef: SessionRef;
   prompt(text: string, images?: readonly unknown[]): Promise<void>;
-  continue(): Promise<void>;
+  /**
+   * Continue the engagement. `bridgeText` (D1 ParkBridge) is appended as a
+   * user message when the last transcript role is assistant (post-settled
+   * park); without a bridge the engine loop-resume verb is used and the
+   * engine's own role guard applies (fail-closed on assistant tails).
+   */
+  continue(opts?: { readonly bridgeText?: string }): Promise<void>;
   interrupt(
     kind: "steer" | "followUp" | "abort",
     payload?: unknown,

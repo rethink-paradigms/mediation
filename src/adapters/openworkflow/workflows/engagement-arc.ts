@@ -17,6 +17,7 @@ import type { EngineKind } from "../../../domain/engine.ts";
 import {
   engagementWakeSignal,
   parseWakeSignalData,
+  wakeBridgeText,
 } from "../signals.ts";
 import type {
   EngagementWorkflowInput,
@@ -172,6 +173,13 @@ export async function runEngagementArc(
     }
 
     const wake = parseWakeSignalData(delivery.data);
+    // D1/D2 ParkBridge (issue #1): default continue after a settled park must
+    // append whatWasAwaited + payload as a user message before the engine
+    // verb — Pi rejects loop-resume continue after an assistant tail.
+    const bridgeText =
+      (wake.mode ?? "continue") === "continue"
+        ? wakeBridgeText(outcome.reason, wake)
+        : undefined;
     const continueInput: EngagementWorkflowInput = {
       agentName: params.input.agentName,
       agentRoot: params.input.agentRoot,
@@ -181,6 +189,8 @@ export async function runEngagementArc(
       sessionRef: outcome.sessionRef,
       task: wake.payloadText,
       engageMode: wake.mode ?? "continue",
+      // Bridge prose the continue leaf threads into engage (mode continue).
+      bridgeText,
       // S2e §5: park → wake continue MUST pin the run's engine. Copy the
       // serialized engine override; without it the wake leaf would fall back
       // to definition/default and could resume a Pi ref on the wrong engine.

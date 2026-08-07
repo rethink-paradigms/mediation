@@ -27,6 +27,15 @@ import type {
  * Minimal vendor session surface the handle needs. Each adapter's own surface
  * type (PiSessionSurface / PrimeSessionSurface) is structurally assignable.
  */
+/**
+ * Minimal vendor transcript tail the handle can inspect for the Pi/Prime
+ * continue rule (last message must not be assistant). Optional: both real
+ * AgentSessions expose `.messages`; fakes may omit it (→ unknown role).
+ */
+export type EngineSessionMessageTail = {
+  readonly role?: string;
+};
+
 export type EngineSessionSurface<TEvent> = {
   prompt(
     text: string,
@@ -49,6 +58,12 @@ export type EngineSessionSurface<TEvent> = {
   readonly sessionFile?: string | undefined;
   readonly sessionId: string;
   readonly isStreaming: boolean;
+  /**
+   * Current transcript (real Pi/Prime AgentSession expose `.messages`).
+   * Optional so thin fakes stay structurally assignable; absent → role
+   * unknown → continue falls back to the engine verb (fail-closed on Pi).
+   */
+  readonly messages?: readonly EngineSessionMessageTail[];
   readonly agent?: {
     continue?: () => Promise<void>;
     waitForIdle?: () => Promise<void>;
@@ -165,11 +180,31 @@ export class EngineSessionHandleBase<TEvent> implements EngineSessionHandle {
     });
   }
 
-  async continue(): Promise<void> {
+  async continue(opts?: { readonly bridgeText?: string }): Promise<void> {
     if (this.disposed) {
       throw new Error(`${this.label}: disposed`);
     }
     this.markBusy();
+    const bridge = hasBridgeText(opts?.bridgeText) ? opts!.bridgeText : undefined;
+
+    // D1 ParkBridge (issue #1): after a full settled park the transcript ends
+    // with role assistant and Pi's loop-resume agent.continue() is illegal
+    // ("Cannot continue from message role: assistant"). When a bridge is
+    // present AND the tail is assistant, append the bridge as a user message
+    // and run — the legal engine path for "human said something later"
+    // (Pi prompt = append user message + full loop). Unknown/empty transcripts
+    // keep the bare engine verb so inMemory fail-closed semantics hold
+    // ("No messages to continue from").
+    if (bridge !== undefined && lastMessageRoleOf(this.session) === "assistant") {
+      this.emit({
+        type: "raw",
+        name: "continue",
+        data: { bridge: true, routed: "prompt" },
+      });
+      await this.session.prompt(bridge, { expandPromptTemplates: false });
+      return;
+    }
+
     this.emit({ type: "raw", name: "continue" });
     const cont = this.session.agent?.continue;
     if (typeof cont === "function") {
@@ -321,4 +356,18 @@ export function sessionRefFromSurface<TEvent>(
     return asSessionRef(session.sessionFile);
   }
   return asSessionRef(session.sessionId);
+}
+
+/** Last transcript message role (undefined when the surface hides messages). */
+export function lastMessageRoleOf<TEvent>(
+  session: EngineSessionSurface<TEvent>,
+): string | undefined {
+  const messages = session.messages;
+  if (!messages || messages.length === 0) return undefined;
+  return messages.at(-1)?.role;
+}
+
+/** A bridge is meaningful when it carries actual prose. */
+function hasBridgeText(bridge: string | undefined): boolean {
+  return typeof bridge === "string" && bridge.trim().length > 0;
 }

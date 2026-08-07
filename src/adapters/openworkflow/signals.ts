@@ -13,6 +13,7 @@
 import { z } from "zod";
 
 import type { RunId } from "../../domain/engagement.ts";
+import { buildParkBridge } from "../../domain/park-bridge.ts";
 
 /** Canonical wake kind for Model P continue-after-park. */
 export const ENGAGEMENT_WAKE_KIND = "wake" as const;
@@ -61,4 +62,21 @@ export function parseWakeSignalData(value: unknown): WakeSignalData {
     payloadText: "",
     mode: "continue",
   };
+}
+
+/**
+ * Bridge semantics for a wake payload (D1/D2): the continue-bridge text
+ * appended as a user message before engaging after Parked. `parkReason` is
+ * the wait contract (whatWasAwaited); `wake.payloadText` is the response.
+ * The Zod schema above stays the single source of truth for the payload
+ * shape — this helper only maps it to bridge prose.
+ */
+export function wakeBridgeText(
+  parkReason: string,
+  wake: WakeSignalData,
+): string {
+  return buildParkBridge({
+    whatWasAwaited: parkReason,
+    payload: wake.payloadText,
+  }).text;
 }

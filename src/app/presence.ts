@@ -106,7 +106,13 @@ export class DefaultAgentPresence implements AgentPresence {
     try {
       const mode = input.mode ?? "prompt";
       if (mode === "continue") {
-        await this.handle.continue();
+        // D1 ParkBridge: the engine handle appends the bridge (explicit
+        // bridgeText, else the payload text) as a user message when the last
+        // transcript role is assistant — making continue legal after a full
+        // settled park on real Pi (issue #1).
+        await this.handle.continue({
+          bridgeText: input.bridgeText ?? input.text,
+        });
       } else {
         await this.handle.prompt(input.text, input.images);
       }

@@ -164,6 +164,7 @@ export async function runEngagementLeaf(
     const outcome = await presence.engage({
       text: input.task,
       mode: input.engageMode,
+      bridgeText: input.bridgeText,
       parkIntent: input.parkIntent,
       parkReason: input.parkReason,
     });

@@ -14,7 +14,8 @@
  *   H2  hosted Mediation.dispatch → wait Settled
  *   H3  engageLocal parkIntent → Parked (explicit park after real mind idle)
  *   H4  hosted park → wake mode=prompt → Settled same sessionRef (file session)
- *   H4b wake default continue after settled park → ENGAGE_FAILED (real Pi)
+ *   H4b hosted park → wake default continue → Settled same sessionRef (D1
+ *       ParkBridge: append whatWasAwaited + payload, then engage — issue #1)
  *   H5  fail-closed missing capability (no openSession / failed leaf)
  *   H6  park local → reenter mode=prompt same sessionRef (file session)
  *   H6b inMemory reenter continue fails (no resume path)
@@ -304,9 +305,8 @@ describe(
         // Pause so waitForSignal is armed (signals not buffered).
         await new Promise((r) => { setTimeout(r, 150); });
 
-        // After park-from-settled, last message is assistant — Pi rejects
-        // session.continue(). Product wake default is mode "continue"; for real
-        // Pi continuum after full idle park, wake with mode "prompt" (next user turn).
+        // Explicit prompt mode: payload is the next user turn (no bridge).
+        // H4b covers the default continue path via the D1 ParkBridge.
         await fileHosted.mediation.wake(handle.runId, {
           payloadText: "pong",
           mode: "prompt",
@@ -337,7 +337,7 @@ describe(
       }
     });
 
-    it("H4b: wake default continue after settled park fails on real Pi (file session)", async () => {
+    it("H4b: wake default continue after settled park → Settled same sessionRef (bridge)", async () => {
       const h4Root = path.join(tmpRoot, "h4b-file-root");
       fs.mkdirSync(h4Root, { recursive: true });
       const fileHosted = createHostedMediation({
@@ -364,15 +364,24 @@ describe(
           agent: { name: "live-h4b-cont", rootDir: h4Root },
           task: "ping",
           parkIntent: true,
-          parkReason: "live-h4b",
+          parkReason: "live-h4b-await",
           clientRequestId: `live-h4b-${Date.now()}`,
         });
         await pollJoinParked(
           () => fileHosted.mediation.getJoinByRunId(handle.runId),
           () => fileHosted.mediation.getStatus(handle.runId),
         );
+        const parkedJoin = await fileHosted.mediation.getJoinByRunId(handle.runId);
+        assert.equal(parkedJoin?.status, "parked");
+        const sessionRef = parkedJoin!.sessionRef;
+        assert.ok(
+          fs.existsSync(String(sessionRef)),
+          `file session must exist for resume: ${sessionRef}`,
+        );
         await new Promise((r) => { setTimeout(r, 150); });
-        // Omit mode → engagement-arc defaults wake.mode to "continue"
+        // Omit mode → engagement-arc defaults wake.mode to "continue"; the
+        // D1 ParkBridge (issue #1) appends whatWasAwaited + payload as a user
+        // message so continue is legal after the assistant-final settled park.
         await fileHosted.mediation.wake(handle.runId, {
           payloadText: "pong",
         });
@@ -386,14 +395,18 @@ describe(
         assert.equal(status.state, "completed");
         const result = status.result as {
           kind?: string;
+          sessionRef?: string;
           error?: { message?: string; code?: string };
         };
-        assert.equal(result?.kind, "failed");
-        assert.equal(result?.error?.code, "ENGAGE_FAILED");
-        assert.match(
-          result?.error?.message ?? "",
-          /Cannot continue from message role: assistant/iu,
+        assert.equal(
+          result?.kind,
+          "settled",
+          `expected settled default-continue wake, got ${JSON.stringify(status)}`,
         );
+        assert.equal(result?.sessionRef, sessionRef);
+        const join = await fileHosted.mediation.getJoinByRunId(handle.runId);
+        assert.equal(join?.status, "settled");
+        assert.equal(join?.sessionRef, sessionRef);
       } finally {
         await fileHosted.stop();
       }

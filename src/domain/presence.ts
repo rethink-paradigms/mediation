@@ -27,6 +27,14 @@ export type EngageInput = {
   readonly images?: readonly unknown[];
   readonly mode?: "prompt" | "continue";
   /**
+   * D1/D2 ParkBridge text for continue-after-Parked: the wait contract
+   * (whatWasAwaited) + wake payload as a user message. When mode is
+   * "continue" the engine handle appends this bridge (or falls back to
+   * `text`) so continue is legal after an assistant-final settled park.
+   * Pure bridge construction lives in domain/park-bridge.ts.
+   */
+  readonly bridgeText?: string;
+  /**
    * When true after engine idle, engage returns Parked (D1 / S9).
    * Stand-in for wait-tool park detection until tool bridge lands.
    */

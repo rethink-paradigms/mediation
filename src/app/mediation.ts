@@ -8,6 +8,7 @@
 import type { AgentDefinition, AgentRef } from "../domain/definition.ts";
 import type { EngineKind } from "../domain/engine.ts";
 import type { EngagementRecord, RunId } from "../domain/engagement.ts";
+import { buildParkBridge } from "../domain/park-bridge.ts";
 import type {
   AgentPresence,
   EngageInput,
@@ -151,12 +152,22 @@ export class Mediation {
   async reenter(input: ReenterInput): Promise<ReenterResult> {
     const definition = await this.load(input.agent);
     // Resume pins the engine (S2e §5): explicit override wins; else the join
-    // record's engine (the engine that created the session) when known.
+    // record's engine (the engine that created the session) when known. The
+    // same record carries the park wait contract (parked.reason) for the
+    // D1 bridge below.
     let engine = input.engine;
-    if (engine === undefined && this.join !== undefined) {
-      const record = await this.join.getBySessionRef(input.sessionRef);
-      engine = record?.engine;
+    let record: EngagementRecord | null = null;
+    if (this.join !== undefined) {
+      record = await this.join.getBySessionRef(input.sessionRef);
+      if (engine === undefined) {
+        engine = record?.engine;
+      }
     }
+    // S8 reenter park reason (wait contract) for the D1 bridge — the join
+    // record written at park time carries it (parked.reason). Fetched via
+    // the same join lookup that pins the engine above when available.
+    const parkReason = input.parkReason ?? record?.parked?.reason;
+
     const presence = await this.materialize(definition, {
       resume: input.sessionRef,
       cwd: input.cwd ?? input.agent.rootDir,
@@ -184,9 +195,22 @@ export class Mediation {
         };
       }
 
+      const mode = input.mode ?? "continue";
+      // D1/D2 ParkBridge (issue #1): continue after a settled park appends
+      // whatWasAwaited (join park reason) + payload (task) as a user message
+      // so the engine verb is legal after an assistant-final transcript.
+      const bridgeText =
+        mode === "continue"
+          ? buildParkBridge({
+              whatWasAwaited: parkReason ?? "",
+              payload: input.task,
+            }).text
+          : undefined;
+
       const outcome = await presence.engage({
         text: input.task,
-        mode: input.mode ?? "continue",
+        mode,
+        bridgeText,
         parkIntent: input.parkIntent,
         parkReason: input.parkReason,
       });

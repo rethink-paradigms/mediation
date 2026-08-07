@@ -35,6 +35,13 @@ export type EngagementWorkflowInput = {
   /** Engage mode for this leaf slice (default engine/presence: prompt). */
   readonly engageMode?: "prompt" | "continue";
   /**
+   * D1 ParkBridge text for continue-after-Parked (issue #1): wait contract
+   * + wake payload as a user message. Built by the arc from the Parked
+   * outcome reason + WakeSignalData payload; the leaf threads it into
+   * presence.engage so the engine handle can route continue legally.
+   */
+  readonly bridgeText?: string;
+  /**
    * Per-call engine override (S2e). Serialized from DispatchInput.engine /
    * PlanNodeSpec.engine; the leaf passes it into materialize and resolves the
    * full precedence (override > definition.engine > defaultEngine > "pi") for
