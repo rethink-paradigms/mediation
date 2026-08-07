@@ -93,6 +93,12 @@ export type CreateSqliteRuntimeHostOptions = {
    * join records / outputs carry the engine the registry factory resolves.
    */
   readonly defaultEngine?: EngineKind;
+  /**
+   * Optional NotifyPort (D3 P4 first pour) threaded to the engagement leaf.
+   * In-process worker mode shares the notifier instance with the control
+   * plane; spawn mode (child processes) does not carry notify (first pour).
+   */
+  readonly notify?: RegisterEngagementWorkflowDeps["notify"];
 };
 
 
@@ -136,6 +142,7 @@ export function createSqliteRuntimeHost(
     ...leafDeps,
     engagementSpec: opts.engagementSpec,
     defaultEngine: opts.defaultEngine,
+    notify: opts.notify,
   });
 
   let planSpec: WorkflowSpecRef<PlanSpec, unknown> | undefined;
@@ -143,6 +150,7 @@ export function createSqliteRuntimeHost(
     const registered = registerPlanWorkflow(ow, {
       ...leafDeps,
       defaultEngine: opts.defaultEngine,
+      notify: opts.notify,
     });
     planSpec = registered.planSpec as WorkflowSpecRef<PlanSpec, unknown>;
   }

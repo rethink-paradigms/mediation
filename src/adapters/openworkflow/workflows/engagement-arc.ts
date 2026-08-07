@@ -70,6 +70,11 @@ export type EngagementArcDeps = {
    * record / outputs carry the same engine the registry factory resolves.
    */
   readonly defaultEngine?: EngineKind;
+  /**
+   * Optional NotifyPort (D3 P4 first pour) threaded to the leaf so parked /
+   * settled / failed records fire per leaf step (initial + wake continues).
+   */
+  readonly notify?: EngagementLeafDeps["notify"];
 };
 
 
@@ -115,6 +120,7 @@ export async function runEngagementArc(
     resolveDefinition: params.deps.resolveDefinition,
     runId: params.runId,
     defaultEngine: params.deps.defaultEngine,
+    notify: params.deps.notify,
   };
 
   let outcome = await params.step.run({ name: leafStepName }, async () => {

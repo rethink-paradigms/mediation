@@ -15,6 +15,7 @@ import { asRunId, type RunId } from "../../../domain/engagement.ts";
 import { asSessionRef } from "../../../domain/presence.ts";
 import type { PresenceFactory } from "../../../domain/presence.ts";
 import type { JoinStore } from "../../../ports/join.ts";
+import type { NotifyPort, NotifyRecord } from "../../../ports/notify.ts";
 import type {
   EngagementWorkflowInput,
   EngagementWorkflowOutput,
@@ -42,6 +43,12 @@ export type EngagementLeafDeps = {
    * --default-engine) so join records match the factory's resolution.
    */
   readonly defaultEngine?: EngineKind;
+  /**
+   * Optional NotifyPort (D3 P4 first pour) — emits parked / settled / failed
+   * records for this durable run. Best-effort: a notify failure never fails
+   * the leaf. Wake stays on RuntimePort.sendSignal("wake"), not notify.
+   */
+  readonly notify?: NotifyPort;
 };
 
 let localRunSeq = 0;
@@ -59,6 +66,20 @@ function resolveRunId(deps: EngagementLeafDeps, input: EngagementWorkflowInput):
 
 function now(): string {
   return new Date().toISOString();
+}
+
+/**
+ * Best-effort notify delivery (D3 P4). Never throws — notify failures must
+ * not fail or corrupt the leaf's engagement outcome.
+ */
+function safeNotify(
+  notify: NotifyPort | undefined,
+  record: NotifyRecord,
+): void {
+  if (!notify) return;
+  void notify.notify(record).catch(() => {
+    // delivery failure isolated from the leaf
+  });
 }
 
 /**
@@ -99,6 +120,11 @@ export async function runEngagementLeaf(
     definition = await deps.resolveDefinition(input);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    safeNotify(deps.notify, {
+      runId,
+      event: "failed",
+      payload: { error: { message, code: "DEFINITION_RESOLVE_FAILED" } },
+    });
     return {
       kind: "failed",
       error: { message, code: "DEFINITION_RESOLVE_FAILED" },
@@ -124,6 +150,11 @@ export async function runEngagementLeaf(
       err && typeof err === "object" && "code" in err
         ? String((err as { code: unknown }).code)
         : "ENGINE_UNKNOWN";
+    safeNotify(deps.notify, {
+      runId,
+      event: "failed",
+      payload: { error: { message, code } },
+    });
     return { kind: "failed", error: { message, code } };
   }
 
@@ -140,6 +171,11 @@ export async function runEngagementLeaf(
       err && typeof err === "object" && "code" in err
         ? String((err as { code: unknown }).code)
         : "MATERIALIZE_FAILED";
+    safeNotify(deps.notify, {
+      runId,
+      event: "failed",
+      payload: { error: { message, code } },
+    });
     return {
       kind: "failed",
       error: { message, code },
@@ -171,6 +207,12 @@ export async function runEngagementLeaf(
 
     if (outcome.kind === "settled") {
       await deps.join.updateStatus(runId, "settled");
+      safeNotify(deps.notify, {
+        runId,
+        sessionRef: presence.sessionRef,
+        event: "settled",
+        payload: { result: outcome.result },
+      });
       return {
         kind: "settled",
         sessionRef: outcome.sessionRef,
@@ -194,6 +236,12 @@ export async function runEngagementLeaf(
         updatedAt: now(),
         engine,
       });
+      safeNotify(deps.notify, {
+        runId,
+        sessionRef: presence.sessionRef,
+        event: "parked",
+        payload: { reason: outcome.reason, resumeToken: outcome.resumeToken },
+      });
       return {
         kind: "parked",
         sessionRef: outcome.sessionRef,
@@ -205,6 +253,12 @@ export async function runEngagementLeaf(
     }
 
     await deps.join.updateStatus(runId, "failed");
+    safeNotify(deps.notify, {
+      runId,
+      sessionRef: outcome.sessionRef ?? presence.sessionRef,
+      event: "failed",
+      payload: { error: outcome.error },
+    });
     return {
       kind: "failed",
       sessionRef: outcome.sessionRef ?? sessionRefStr,
@@ -222,6 +276,12 @@ export async function runEngagementLeaf(
     } catch {
       // join may not have been written
     }
+    safeNotify(deps.notify, {
+      runId,
+      sessionRef: sessionRefStr ? asSessionRef(sessionRefStr) : undefined,
+      event: "failed",
+      payload: { error: { message, code: "ENGAGE_FAILED" } },
+    });
     return {
       kind: "failed",
       sessionRef: sessionRefStr,

@@ -13,7 +13,8 @@ export type MediationErrorCode =
   | "RUNTIME_FAILED"
   | "JOIN_NOT_FOUND"
   | "POLICY_VIOLATION"
-  | "ENGINE_UNKNOWN";
+  | "ENGINE_UNKNOWN"
+  | "PRESENCE_NOT_LIVE";
 
 export class MediationError extends Error {
   readonly code: MediationErrorCode;

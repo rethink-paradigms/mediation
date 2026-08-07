@@ -79,6 +79,10 @@ export type RegisterEngagementWorkflowDeps = {
    * records / outputs carry the engine the registry factory resolves.
    */
   readonly defaultEngine?: EngineKind;
+  /**
+   * Optional NotifyPort (D3 P4 first pour) threaded to the arc → leaf.
+   */
+  readonly notify?: EngagementArcDeps["notify"];
 };
 
 
@@ -112,6 +116,7 @@ export function registerEngagementWorkflow(
         resolveDefinition: deps.resolveDefinition,
         executeLeaf: deps.executeLeaf,
         defaultEngine: deps.defaultEngine,
+        notify: deps.notify,
       },
     });
   });

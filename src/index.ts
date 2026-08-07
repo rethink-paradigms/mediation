@@ -77,6 +77,8 @@ export type {
 export { asRunId } from "./domain/engagement.ts";
 
 export type { MediationEvent } from "./domain/events.ts";
+export { mediationEventFromNotify } from "./domain/events.ts";
+export type { NotifyRecordShape } from "./domain/events.ts";
 
 export { MediationError } from "./domain/errors.ts";
 export type { MediationErrorCode } from "./domain/errors.ts";
@@ -112,6 +114,14 @@ export type {
   SurfaceReenterRequest,
   SurfaceReenterResult,
 } from "./ports/surface.ts";
+
+// --- SURFACES (issue #3): NotifyPort (D3 P4 first pour) ---
+export type {
+  NotifyPort,
+  ObservableNotifyPort,
+  NotifyRecord,
+  NotifyEventKind,
+} from "./ports/notify.ts";
 
 // --- ABS-A2 CapabilityStore port (D5 L2; adapters A3/A4/R1) ---
 export type {
@@ -181,6 +191,10 @@ export type {
 } from "./adapters/prime/types.ts";
 export { mapPrimeEvent } from "./adapters/prime/event-map.ts";
 export type { MapPrimeEventOptions } from "./adapters/prime/event-map.ts";
+
+// --- SURFACES (issue #3): InProcessNotifier (NotifyPort first pour) ---
+export { InProcessNotifier } from "./adapters/notify/in-process.ts";
+export type { InProcessNotifyListener } from "./adapters/notify/in-process.ts";
 
 // --- ABS-B2 Mediation as SurfacePort (CLI uses SurfacePort only) ---
 export {
@@ -342,6 +356,12 @@ export { plan } from "./app/recipes/plan.ts";
 export type { PlanRecipeInput, PlanRecipeResult } from "./app/recipes/plan.ts";
 export { wake } from "./app/recipes/wake.ts";
 export type { WakeRecipeInput, WakeRecipeResult } from "./app/recipes/wake.ts";
+export { live } from "./app/recipes/live.ts";
+export type { LiveRecipeInput, LiveRecipeResult } from "./app/recipes/live.ts";
+export { interrupt } from "./app/recipes/interrupt.ts";
+export type { InterruptRecipeInput } from "./app/recipes/interrupt.ts";
+export { observe } from "./app/recipes/observe.ts";
+export type { ObserveRecipeInput, ObserveRecipeResult } from "./app/recipes/observe.ts";
 
 // ==========================================================================
 // ENGINE SELECTION (S2e) — runtime engine adapter choice (pi | prime | mock)

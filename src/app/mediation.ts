@@ -7,11 +7,21 @@
 
 import type { AgentDefinition, AgentRef } from "../domain/definition.ts";
 import type { EngineKind } from "../domain/engine.ts";
-import type { EngagementRecord, RunId } from "../domain/engagement.ts";
+import {
+  asRunId,
+  type EngagementRecord,
+  type RunId,
+} from "../domain/engagement.ts";
+import { MediationError } from "../domain/errors.ts";
+import {
+  mediationEventFromNotify,
+  type MediationEvent,
+} from "../domain/events.ts";
 import { buildParkBridge } from "../domain/park-bridge.ts";
 import type {
   AgentPresence,
   EngageInput,
+  InterruptKind,
   MaterializeOptions,
   PresenceFactory,
   RunOutcome,
@@ -19,6 +29,11 @@ import type {
 } from "../domain/presence.ts";
 import type { DefinitionLoader } from "../ports/definition-loader.ts";
 import type { JoinStore } from "../ports/join.ts";
+import {
+  isObservableNotifyPort,
+  type NotifyPort,
+  type NotifyRecord,
+} from "../ports/notify.ts";
 import type {
   DispatchHandle,
   DispatchInput,
@@ -34,6 +49,14 @@ export type MediationDeps = {
   readonly runtime?: RuntimePort;
   /** Optional — join lookup / correlation. */
   readonly join?: JoinStore;
+  /**
+   * Optional NotifyPort (D3 P4 first pour). The façade emits parked /
+   * settled / failed / interrupted records for local + control-plane ops;
+   * the engagement leaf emits for durable runs. When the port is the
+   * in-process adapter, Mediation.observe bridges its records into
+   * MediationEvent (recipe G).
+   */
+  readonly notify?: NotifyPort;
 };
 
 export type EngageLocalInput = {
@@ -91,12 +114,22 @@ export class Mediation {
   private readonly factory: PresenceFactory;
   private readonly runtime: RuntimePort | undefined;
   private readonly join: JoinStore | undefined;
+  private readonly notify: NotifyPort | undefined;
+  /** MediationEvent observers (recipe G / UIs). Error-isolated fan-out. */
+  private readonly observers = new Set<(event: MediationEvent) => void>();
+  /**
+   * In-process live-Presence registry (LIFE-L1 first pour):
+   * runId → materialized+live presence. interrupt(runId, …) hits this;
+   * miss → PRESENCE_NOT_LIVE. Multi-process bus deferred.
+   */
+  private readonly livePresences = new Map<RunId, AgentPresence>();
 
   constructor(deps: MediationDeps) {
     this.loader = deps.loader;
     this.factory = deps.factory;
     this.runtime = deps.runtime;
     this.join = deps.join;
+    this.notify = deps.notify;
   }
 
   /** Load inert AgentDefinition from AgentRef. */
@@ -129,6 +162,15 @@ export class Mediation {
         mode: input.mode,
         parkIntent: input.parkIntent,
         parkReason: input.parkReason,
+      });
+      // Recipe G: local engages are observable product events.
+      this.emitEvent({ type: "presence.outcome", presenceId: presence.id, outcome });
+      // D3 P4: local outcomes notify too (synthesized runId — no durable run).
+      await this.safeNotify({
+        runId: asRunId(`local:${presence.id}`),
+        sessionRef: presence.sessionRef,
+        event: outcome.kind,
+        payload: notifyPayloadFor(outcome),
       });
       return {
         outcome,
@@ -179,15 +221,23 @@ export class Mediation {
         input.expectedPackSnapshotHash !== undefined &&
         input.expectedPackSnapshotHash !== hash
       ) {
-        return {
-          outcome: {
-            kind: "failed",
-            sessionRef: presence.sessionRef,
-            error: {
-              message: `reenter packSnapshot mismatch: expected ${input.expectedPackSnapshotHash}, got ${hash}`,
-              code: "PACK_SNAPSHOT_MISMATCH",
-            },
+        const mismatchOutcome: RunOutcome = {
+          kind: "failed",
+          sessionRef: presence.sessionRef,
+          error: {
+            message: `reenter packSnapshot mismatch: expected ${input.expectedPackSnapshotHash}, got ${hash}`,
+            code: "PACK_SNAPSHOT_MISMATCH",
           },
+        };
+        this.emitEvent({ type: "presence.outcome", presenceId: presence.id, outcome: mismatchOutcome });
+        await this.safeNotify({
+          runId: asRunId(`local:${presence.id}`),
+          sessionRef: presence.sessionRef,
+          event: "failed",
+          payload: notifyPayloadFor(mismatchOutcome),
+        });
+        return {
+          outcome: mismatchOutcome,
           sessionRef: presence.sessionRef,
           packSnapshotHash: hash,
           definitionId: definition.id,
@@ -213,6 +263,13 @@ export class Mediation {
         bridgeText,
         parkIntent: input.parkIntent,
         parkReason: input.parkReason,
+      });
+      this.emitEvent({ type: "presence.outcome", presenceId: presence.id, outcome });
+      await this.safeNotify({
+        runId: asRunId(`local:${presence.id}`),
+        sessionRef: presence.sessionRef,
+        event: outcome.kind,
+        payload: notifyPayloadFor(outcome),
       });
       return {
         outcome,
@@ -277,7 +334,14 @@ export class Mediation {
         "Mediation.dispatch: no RuntimePort configured (wire OpenWorkflowRuntime)",
       );
     }
-    return await this.runtime.dispatch(input);
+    const handle = await this.runtime.dispatch(input);
+    // Recipe G: a dispatched run is observable from the control plane.
+    this.emitEvent({
+      type: "engagement.status",
+      runId: handle.runId,
+      status: "materializing",
+    });
+    return handle;
   }
 
   /** Dispatch durable multi-node plan via RuntimePort (recipe C / plan). */
@@ -346,6 +410,8 @@ export class Mediation {
       readonly parkReason?: string;
     },
   ): Promise<void> {
+    // Recipe G: wake is a control-plane event (order: parked → wake → settled).
+    this.emitEvent({ type: "run.wake", runId, payloadText: data.payloadText });
     return await this.sendSignal(runId, "wake", data);
   }
 
@@ -363,6 +429,99 @@ export class Mediation {
       throw new Error("Mediation.getJoinBySessionRef: no JoinStore configured");
     }
     return await this.join.getBySessionRef(sessionRef);
+  }
+
+  // ── SURFACES wave (issue #3): observe + live interrupt registry ────────
+
+  /**
+   * Observe the MediationEvent stream (recipe G — observe).
+   * Façade ops emit directly; when the wired NotifyPort is the in-process
+   * adapter, leaf/durable records (parked/settled/failed/interrupted) are
+   * bridged into the same stream, so one subscription sees the full run
+   * story (park → wake → settled). Returns unsubscribe.
+   */
+  observe(listener: (event: MediationEvent) => void): () => void {
+    this.observers.add(listener);
+    let offNotify: (() => void) | undefined;
+    if (isObservableNotifyPort(this.notify)) {
+      offNotify = this.notify.on((record) => {
+        listener(mediationEventFromNotify(record));
+      });
+    }
+    return () => {
+      this.observers.delete(listener);
+      offNotify?.();
+    };
+  }
+
+  /** Register a materialized+live presence under a runId (LIFE-L1). */
+  registerLivePresence(runId: RunId, presence: AgentPresence): void {
+    this.livePresences.set(runId, presence);
+  }
+
+  /** Remove a live presence (dispose / recipe close). */
+  unregisterLivePresence(runId: RunId): void {
+    this.livePresences.delete(runId);
+  }
+
+  /**
+   * RunId-scoped interrupt (LIFE-L1 / recipe F). Only in-process live
+   * presences are interruptible; anything else fails PRESENCE_NOT_LIVE.
+   */
+  async interrupt(
+    runId: RunId,
+    kind: InterruptKind,
+    payload?: unknown,
+  ): Promise<void> {
+    const presence = this.livePresences.get(runId);
+    if (!presence) {
+      throw new MediationError(
+        "PRESENCE_NOT_LIVE",
+        `run ${runId} is not live in-process (no live presence registered)`,
+        { runId },
+      );
+    }
+    await presence.interrupt(kind, payload);
+    await this.safeNotify({
+      runId,
+      sessionRef: presence.sessionRef,
+      event: "interrupted",
+      payload: { kind, payload },
+    });
+    this.emitEvent({ type: "run.interrupted", runId, kind });
+  }
+
+  /** Error-isolated MediationEvent fan-out (observer errors never break ops). */
+  private emitEvent(event: MediationEvent): void {
+    for (const listener of this.observers) {
+      try {
+        listener(event);
+      } catch {
+        // observer errors isolated from façade operations
+      }
+    }
+  }
+
+  /** Best-effort notify delivery (D3 P4) — notify failures never fail ops. */
+  private async safeNotify(record: NotifyRecord): Promise<void> {
+    if (!this.notify) return;
+    try {
+      await this.notify.notify(record);
+    } catch {
+      // delivery failure isolated
+    }
+  }
+}
+
+/** Outcome → NotifyRecord payload (D3 P4). */
+function notifyPayloadFor(outcome: RunOutcome): unknown {
+  switch (outcome.kind) {
+    case "settled":
+      return { result: outcome.result };
+    case "parked":
+      return { reason: outcome.reason, resumeToken: outcome.resumeToken };
+    case "failed":
+      return { error: outcome.error };
   }
 }
 

@@ -94,6 +94,11 @@ export type RegisterPlanWorkflowDeps = {
    * records / outputs carry the engine the registry factory resolves.
    */
   readonly defaultEngine?: EngineKind;
+  /**
+   * Optional NotifyPort (D3 P4 first pour) threaded to each node leaf —
+   * plan nodes emit parked / settled / failed like solo engagement runs.
+   */
+  readonly notify?: EngagementLeafDeps["notify"];
 };
 
 
@@ -135,6 +140,7 @@ export function registerPlanWorkflow(
                 resolveDefinition: deps.resolveDefinition,
                 runId: nodeRunId,
                 defaultEngine: deps.defaultEngine,
+                notify: deps.notify,
               });
             })
             .then((outcome) => ({ nodeId: node.id, outcome })),
