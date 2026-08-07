@@ -22,17 +22,17 @@ Gauge gate: `spawn_public_export_count === 0` (see `scripts/gauges/spawn-death.t
 
 ## D3 L3 — when may the private spawn stub be deleted?
 
-All must be true:
+All must be true (last audited: 2026-08-11, POLISH wave — issue #5):
 
 | # | Criterion (D3 L3 / migration-world) | Status in this package | Notes |
 |---|-------------------------------------|------------------------|--------|
-| 1 | In-process pilot engage works (materialize → Settled) | **DONE** | S2 mock + S2b/S2c/S5 Pi pilot path; presence tests |
-| 2 | E pack parity for pilot (reenter pack hash / snapshot fidelity) | **DONE** | S3 resume fidelity; S8 reenter recipe |
-| 3 | Join keys written for pilot runs | **DONE** | S5a MemoryJoinStore; S6 SqliteJoinStore |
-| 4 | No product docs / tools teaching runner-as-core as the API | **OPEN** | External docs / harness still may teach spawn; mediation public surface does **not** |
-| 5 | Notify path uses interrupt / continue-engage (pipes optional behind) | **OPEN** | D3 L5 / P4 — not owned by S11 |
-| 6 | Private `spawn-engage` stub deleted from adapters/legacy | **OPEN** | Keep fail-closed stub until external callers + docs cleared; delete only after 1–5 |
-| 7 | External `openworkflow/run-agent` (or equivalent) removed | **OUT OF PACKAGE** | S11 does not delete company spawn runners |
+| 1 | In-process pilot engage works (materialize → Settled) | **DONE** | S2 mock + S2b/S2c/S5 Pi pilot path; presence tests (`test/presence/engage-settled.test.ts`) |
+| 2 | E pack parity for pilot (reenter pack hash / snapshot fidelity) | **DONE** | S3 resume fidelity (`test/integration/resume-fidelity.test.ts`); S8 reenter recipe |
+| 3 | Join keys written for pilot runs | **DONE** | S5a MemoryJoinStore; S6 SqliteJoinStore (`test/runtime/sqlite-join-store.test.ts`) |
+| 4 | No product docs / tools teaching runner-as-core as the API | **DONE (in package)** | Package docs (README/TOOLING) never mention spawn as a door; `src/index.ts` does not re-export `spawnEngage`; `spawn_public_export_count` gauge = 0. Research/understanding corpus (`migration-world.md` etc.) documents the migration itself by design — not product docs. Full company-wide doc sweep remains open (see row 6). |
+| 5 | Notify path uses interrupt / continue-engage (pipes optional behind) | **DONE (P4 first pour)** | `NotifyPort` (`src/ports/notify.ts`) + in-process adapter emit parked / settled / failed / interrupted records from leaf + façade (SURFACES wave, issue #3); wake rides `RuntimePort.sendSignal("wake")`, never a second notify protocol; interrupt via live-presence registry (`Mediation.interrupt`). Tests: `test/app/notify.test.ts`, `test/app/observe.test.ts`, `test/app/interrupt.test.ts`. External transport (HTTP/IPC/MCP) still to come — port is ready. |
+| 6 | Private `spawn-engage` stub deleted from adapters/legacy | **OPEN — keep** | Stub remains fail-closed (`SPAWN_DISABLED`, `src/adapters/legacy/spawn-engage.ts`) and is only referenced by its own tests. Deletion is still blocked: criterion 4 is only in-package DONE (company-wide docs not fully swept), criterion 6 is self-referential, and criterion 7 is out of package. Delete only after 1–5 fully true AND no remaining caller needs the stub. |
+| 7 | External `openworkflow/run-agent` (or equivalent) removed | **OUT OF PACKAGE** | S11 / POLISH does not delete company spawn runners. Fleet cutover is tracked out of package (P6 note below). |
 
 ---
 
@@ -44,9 +44,9 @@ All must be true:
 | **P1** | Pilot A: materialize + engage → Settled + sessionRef | **DONE** |
 | **P2** | E: reenter same sessionRef → same packSnapshot | **DONE** (S3/S8) |
 | **P3** | B: RuntimePort dispatch + join | **DONE** (S5a–S5d, S6) |
-| **P4** | Notify via interrupt/continue interface | **OPEN** |
-| **P5** | Adapter expiry → delete spawn path | **OPEN** (this checklist 1–6) |
-| **P6** | Plan migration (C) only after P3 | **OUT OF S11** (S10 owns plan leaf) |
+| **P4** | Notify via interrupt/continue interface | **DONE (first pour)** — NotifyPort + in-process adapter (issue #3); external transport pending |
+| **P5** | Adapter expiry → delete spawn path | **OPEN** (this checklist 1–6; stub kept fail-closed) |
+| **P6** | Plan migration (C) only after P3 | **OUT OF S11** (S10 owns plan leaf); **fleet cutover = out-of-package note only** — the fleet's dual-core death runs through the company OW worker, not this package |
 
 ---
 

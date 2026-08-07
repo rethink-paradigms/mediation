@@ -1,5 +1,17 @@
 # Investigation: Park/wake continue design gap (real Pi)
 
+> **RESOLVED (2026-08-11):** The design gap this investigation documents was
+> fixed by issue #1 (merge `51631d7` LIFE-FIX) — the D1/D2 ParkBridge
+> (`src/domain/park-bridge.ts`) now appends whatWasAwaited + wake payload as a
+> user message before the engine continue verb, making continue legal after an
+> assistant-final settled park. Live re-proof (POLISH wave, 2026-08-11):
+> H4b in `test/runtime/live-life-health.test.ts` and L-W1/L-W2 in
+> `test/runtime/live-park-wake-pi.test.ts` all pass on real Pi
+> (default continue → Settled, same sessionRef). The "Ops guidance"
+> (explicit `mode: "prompt"` workaround) below is no longer required for the
+> default path, though `inMemorySession` continue-after-park still fails
+> closed (H6b, documented gap — file sessions required for continuum).
+
 **Date:** 2026-07-18  
 **Kind:** Design investigation only (no product fix)  
 **Scope:** Why default park → wake / reenter with `mode: "continue"` fails under real Pi after a full settled idle park  

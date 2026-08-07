@@ -1,6 +1,29 @@
 # Live system health report — @company/mediation
 
-## Executive verdict
+## POST-FIX UPDATE (2026-08-11, POLISH wave — issue #5)
+
+The degraded verdict below predates the park-wake bridge fix (issue #1, merge
+`51631d7`). Re-run on 2026-08-11 (tip `a0b3eca` + POLISH, model
+`deepseek/deepseek-v4-flash`, auth `~/.pi/agent/auth.json`):
+
+- `MEDIATION_LIVE_PI=1 npm run test:live-pi` → **13/13 pass** (incl. H4b: wake
+  default continue after settled park → Settled same sessionRef, via the D1
+  bridge; H5 fail-closed capability; H6 reenter; H7 two-node runPlan).
+- `MEDIATION_LIVE_PI=1 node --experimental-strip-types --test
+  test/runtime/live-park-wake-pi.test.ts` → **2/2 pass** (L-W1 hosted
+  park→wake default continue → Settled; L-W2 local park → reenter default
+  continue → Settled).
+- `MEDIATION_LIVE_PRIME=1 node --experimental-strip-types --test
+  test/prime/live-prime.test.ts` → **1/1 pass** (prime engine smoke).
+
+Verdict now: **HEALTHY for real Pi + DeepSeek, default continue path fixed.**
+The default `wake.mode ?? "continue"` / reenter `continue` path (previously
+the live-breaking defect) is the *tested default* again. The one documented
+constraint that remains: `inMemorySession` cannot resume a parked session for
+continue (H6b fails closed with a clear error) — file sessions are required
+for continuum, as always. Details: `EVIDENCE-POLISH.md`.
+
+## Executive verdict (original, 2026-07-17 — superseded by the update above)
 
 **Degraded but operationally usable for real Pi + DeepSeek.** Cold engage, factory materialize, leaf, OW worker dispatch, hosted Mediation continuum (settle + join), explicit park, fail-closed capability, file-session park→wake with `mode: "prompt"`, reenter with `mode: "prompt"`, and two-node `runPlan` all **pass live**. The default park→wake path is **broken for real Pi**: after a full settled park the last message is assistant, and Pi rejects `session.continue()` (`Cannot continue from message role: assistant`). Mock continuum green-lights the default `wake.mode ?? "continue"` path that fails under real mind. `inMemorySession` cannot resume for continuum either. Product ops should use **file sessions + wake/reenter `mode: "prompt"`** until the default continue semantic is fixed.
 

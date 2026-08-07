@@ -6,7 +6,7 @@
 import type { IdleSnapshot } from "../ports/engine.ts";
 
 export type SettledPolicyInput = {
-  readonly idle: IdleSnapshot;
+  readonly idle: IdleSnapshot | undefined;
   /**
    * True when a standard wait tool (or equivalent) completed with park intent.
    * When true, engage must return Parked, not Settled.

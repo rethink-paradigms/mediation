@@ -14,6 +14,7 @@ import { resolveEngineKind, type EngineKind } from "../../../domain/engine.ts";
 import { asRunId, type RunId } from "../../../domain/engagement.ts";
 import { asSessionRef } from "../../../domain/presence.ts";
 import type { PresenceFactory } from "../../../domain/presence.ts";
+import { outcomeFromError } from "../../../app/outcomes.ts";
 import type { JoinStore } from "../../../ports/join.ts";
 import type { NotifyPort, NotifyRecord } from "../../../ports/notify.ts";
 import type {
@@ -119,15 +120,19 @@ export async function runEngagementLeaf(
   try {
     definition = await deps.resolveDefinition(input);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    // OutcomeMapper: thrown value → Failed (code taxonomy single point).
+    const failure = outcomeFromError({
+      error: err,
+      code: "DEFINITION_RESOLVE_FAILED",
+    });
     safeNotify(deps.notify, {
       runId,
       event: "failed",
-      payload: { error: { message, code: "DEFINITION_RESOLVE_FAILED" } },
+      payload: { error: failure.error },
     });
     return {
       kind: "failed",
-      error: { message, code: "DEFINITION_RESOLVE_FAILED" },
+      error: failure.error,
       engine: safeResolvedEngine(input, deps),
     };
   }
@@ -145,17 +150,17 @@ export async function runEngagementLeaf(
       defaultEngine: deps.defaultEngine,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? String((err as { code: unknown }).code)
-        : "ENGINE_UNKNOWN";
+    // OutcomeMapper: error.code preserved when present, else ENGINE_UNKNOWN.
+    const failure = outcomeFromError({
+      error: err,
+      fallbackCode: "ENGINE_UNKNOWN",
+    });
     safeNotify(deps.notify, {
       runId,
       event: "failed",
-      payload: { error: { message, code } },
+      payload: { error: failure.error },
     });
-    return { kind: "failed", error: { message, code } };
+    return { kind: "failed", error: failure.error };
   }
 
   let presence;
@@ -166,19 +171,20 @@ export async function runEngagementLeaf(
       engine: input.engine,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const code =
-      err && typeof err === "object" && "code" in err
-        ? String((err as { code: unknown }).code)
-        : "MATERIALIZE_FAILED";
+    // OutcomeMapper: error.code preserved (e.g. CAPABILITY_RESOLVE_FAILED),
+    // else MATERIALIZE_FAILED.
+    const failure = outcomeFromError({
+      error: err,
+      fallbackCode: "MATERIALIZE_FAILED",
+    });
     safeNotify(deps.notify, {
       runId,
       event: "failed",
-      payload: { error: { message, code } },
+      payload: { error: failure.error },
     });
     return {
       kind: "failed",
-      error: { message, code },
+      error: failure.error,
       engine,
     };
   }
@@ -270,7 +276,10 @@ export async function runEngagementLeaf(
       engine,
     };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const failure = outcomeFromError({
+      error: err,
+      code: "ENGAGE_FAILED",
+    });
     try {
       await deps.join.updateStatus(runId, "failed");
     } catch {
@@ -280,13 +289,13 @@ export async function runEngagementLeaf(
       runId,
       sessionRef: sessionRefStr ? asSessionRef(sessionRefStr) : undefined,
       event: "failed",
-      payload: { error: { message, code: "ENGAGE_FAILED" } },
+      payload: { error: failure.error },
     });
     return {
       kind: "failed",
       sessionRef: sessionRefStr,
       packSnapshotHash: packHash,
-      error: { message, code: "ENGAGE_FAILED" },
+      error: failure.error,
       engine,
     };
   } finally {

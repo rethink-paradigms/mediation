@@ -18,6 +18,7 @@ import {
   type MediationEvent,
 } from "../domain/events.ts";
 import { buildParkBridge } from "../domain/park-bridge.ts";
+import { outcomeFromError } from "./outcomes.ts";
 import type {
   AgentPresence,
   EngageInput,
@@ -221,14 +222,14 @@ export class Mediation {
         input.expectedPackSnapshotHash !== undefined &&
         input.expectedPackSnapshotHash !== hash
       ) {
-        const mismatchOutcome: RunOutcome = {
-          kind: "failed",
+        const mismatchOutcome: RunOutcome = outcomeFromError({
           sessionRef: presence.sessionRef,
           error: {
             message: `reenter packSnapshot mismatch: expected ${input.expectedPackSnapshotHash}, got ${hash}`,
             code: "PACK_SNAPSHOT_MISMATCH",
           },
-        };
+          code: "PACK_SNAPSHOT_MISMATCH",
+        });
         this.emitEvent({ type: "presence.outcome", presenceId: presence.id, outcome: mismatchOutcome });
         await this.safeNotify({
           runId: asRunId(`local:${presence.id}`),
@@ -305,13 +306,10 @@ export class Mediation {
         : await this.join.getBySessionRef(key.sessionRef);
     if (!record) {
       return {
-        outcome: {
-          kind: "failed",
-          error: {
-            message: "reenterFromJoin: no join record",
-            code: "JOIN_NOT_FOUND",
-          },
-        },
+        outcome: outcomeFromError({
+          error: "reenterFromJoin: no join record",
+          code: "JOIN_NOT_FOUND",
+        }),
         definitionId: "",
         packSnapshotMatch: false,
       };
