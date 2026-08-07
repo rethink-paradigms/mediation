@@ -3,6 +3,8 @@
  * No I/O, no vendor types.
  */
 
+import type { EngineKind } from "./engine.ts";
+
 /** Reference to an agent root (name + filesystem root). */
 export type AgentRef = {
   readonly name: string;
@@ -52,6 +54,12 @@ export type AgentDefinition = {
   readonly name: string;
   readonly rootDir: string;
   readonly model: ModelSpec;
+  /**
+   * Agent's declared engine default (`agent.yaml` key `engine:`).
+   * Inert carrier — no I/O, no resolution here. Resolution precedence:
+   * per-call override > effective config-layer > composition defaultEngine > "pi".
+   */
+  readonly engine?: EngineKind;
   readonly thinking?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
   /** Path to .md or inline system prompt text. */
   readonly prompt?: string;

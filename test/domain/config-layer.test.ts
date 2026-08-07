@@ -146,6 +146,31 @@ describe("domain/config-layer (ABS-A5)", () => {
     assert.deepEqual(effective.extensions.map(String), ["r", "f1", "f2"]);
   });
 
+  it("engine: later layer overrides earlier (root → family → agent)", () => {
+    const effective = mergeCapabilitySpecs([
+      layer("root", { engine: "pi" }),
+      layer("family", { engine: "mock" }),
+      layer("agent", { engine: "prime" }),
+    ]);
+    assert.equal(effective.engine, "prime");
+  });
+
+  it("engine: override respects kind order even when input scrambled", () => {
+    const effective = mergeCapabilitySpecs([
+      layer("agent", { engine: "mock" }),
+      layer("root", { engine: "prime" }),
+      layer("family", { engine: "pi" }),
+    ]);
+    assert.equal(effective.engine, "mock");
+  });
+
+  it("engine absent everywhere → effective spec has no engine field", () => {
+    const effective = mergeCapabilitySpecs([
+      layer("root", { extensions: ["a"] }),
+    ]);
+    assert.ok(!("engine" in effective));
+  });
+
   it("full root/family/agent fixture merges policy + ids", () => {
     const effective = mergeCapabilitySpecs([
       layer("root", {

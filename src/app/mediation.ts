@@ -6,6 +6,7 @@
  */
 
 import type { AgentDefinition, AgentRef } from "../domain/definition.ts";
+import type { EngineKind } from "../domain/engine.ts";
 import type { EngagementRecord, RunId } from "../domain/engagement.ts";
 import type {
   AgentPresence,
@@ -43,6 +44,8 @@ export type EngageLocalInput = {
   /** S9: force Parked outcome after idle (recipe / test). */
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
+  /** Per-call engine override (S2e). */
+  readonly engine?: EngineKind;
 };
 
 export type EngageLocalResult = {
@@ -67,6 +70,11 @@ export type ReenterInput = {
   readonly expectedPackSnapshotHash?: string;
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
+  /**
+   * Per-call engine override (S2e). Resume pins the engine: when omitted,
+   * reenter reuses the join record's engine (when a join is present).
+   */
+  readonly engine?: EngineKind;
 };
 
 export type ReenterResult = EngageLocalResult & {
@@ -112,6 +120,7 @@ export class Mediation {
     const presence = await this.materialize(definition, {
       resume: input.resume,
       cwd: input.cwd ?? input.agent.rootDir,
+      engine: input.engine,
     });
     try {
       const outcome = await presence.engage({
@@ -141,9 +150,17 @@ export class Mediation {
    */
   async reenter(input: ReenterInput): Promise<ReenterResult> {
     const definition = await this.load(input.agent);
+    // Resume pins the engine (S2e §5): explicit override wins; else the join
+    // record's engine (the engine that created the session) when known.
+    let engine = input.engine;
+    if (engine === undefined && this.join !== undefined) {
+      const record = await this.join.getBySessionRef(input.sessionRef);
+      engine = record?.engine;
+    }
     const presence = await this.materialize(definition, {
       resume: input.sessionRef,
       cwd: input.cwd ?? input.agent.rootDir,
+      engine,
     });
     try {
       const hash = presence.packSnapshot.planHash;
@@ -221,6 +238,8 @@ export class Mediation {
     return this.reenter({
       ...input,
       sessionRef: record.sessionRef,
+      // Pin the creating run's engine (resume is engine-specific).
+      engine: input.engine ?? record.engine,
       expectedPackSnapshotHash: input.enforcePackSnapshot
         ? record.packSnapshot.planHash
         : undefined,

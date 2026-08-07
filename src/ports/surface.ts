@@ -7,6 +7,7 @@
  */
 
 import type { AgentRef } from "../domain/definition.js";
+import type { EngineKind } from "../domain/engine.js";
 import type { RunId } from "../domain/engagement.js";
 import type { RunOutcome, SessionRef } from "../domain/presence.js";
 import type { DispatchHandle, RuntimeStatus } from "./runtime.js";
@@ -32,6 +33,8 @@ export type SurfaceRequest = {
   /** S9 / Model P: force Parked after idle (stand-in). */
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
+  /** Per-call engine override (S2e) — forwarded to engageLocal / dispatch. */
+  readonly engine?: EngineKind;
 };
 
 /**
@@ -61,6 +64,8 @@ export type SurfaceReenterRequest = {
   readonly expectedPackSnapshotHash?: string;
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
+  /** Per-call engine override (S2e) — reenter pins the run's engine. */
+  readonly engine?: EngineKind;
 };
 
 /**

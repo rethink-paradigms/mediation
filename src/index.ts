@@ -4,9 +4,10 @@
  * Layer-organized public API. Exports follow the architecture:
  *   Domain → Ports → Adapters → App → Composition
  *
- * The real PiEngineAdapter is the single engine implementation and is
- * publicly exported for composition. Wire via composition roots
- * (createLocalMediation / createHostedMediation) for the preferred path.
+ * PiEngineAdapter and PrimeEngineAdapter are the two engine implementations
+ * and are publicly exported for composition (engine selection slices land in
+ * a parallel effort — compose.ts / engine-registry). Wire via composition
+ * roots (createLocalMediation / createHostedMediation) for the preferred path.
  *
  * Relative re-exports use `.ts` for strip-types runtime (noEmit package).
  */
@@ -169,6 +170,18 @@ export type { DefaultCapabilityResolverOptions } from "./adapters/capability/res
 export { PiEngineAdapter } from "./adapters/pi/engine-adapter.ts";
 export type { PiEngineAdapterOptions } from "./adapters/pi/engine-adapter.ts";
 
+// --- PrimeEngineAdapter — second engine implementation (parallel slice) ---
+export { PrimeEngineAdapter } from "./adapters/prime/engine-adapter.ts";
+export type { PrimeEngineAdapterOptions } from "./adapters/prime/engine-adapter.ts";
+export type {
+  PrimeSessionSurface,
+  PrimeSessionEvent,
+  PrimeSessionFactory,
+  OpenedPrimeSession,
+} from "./adapters/prime/types.ts";
+export { mapPrimeEvent } from "./adapters/prime/event-map.ts";
+export type { MapPrimeEventOptions } from "./adapters/prime/event-map.ts";
+
 // --- ABS-B2 Mediation as SurfacePort (CLI uses SurfacePort only) ---
 export {
   createMediationSurface,
@@ -329,6 +342,24 @@ export { plan } from "./app/recipes/plan.ts";
 export type { PlanRecipeInput, PlanRecipeResult } from "./app/recipes/plan.ts";
 export { wake } from "./app/recipes/wake.ts";
 export type { WakeRecipeInput, WakeRecipeResult } from "./app/recipes/wake.ts";
+
+// ==========================================================================
+// ENGINE SELECTION (S2e) — runtime engine adapter choice (pi | prime | mock)
+// ==========================================================================
+
+export {
+  ENGINE_KINDS,
+  asEngineKind,
+  isEngineKind,
+  resolveEngineKind,
+} from "./domain/engine.ts";
+export type {
+  EngineKind,
+  EngineResolutionInput,
+} from "./domain/engine.ts";
+export type { EngineRegistry } from "./ports/engine.ts";
+export { createEngineRegistry } from "./adapters/engine-registry.ts";
+export type { EngineRegistryOptions } from "./adapters/engine-registry.ts";
 
 // ==========================================================================
 // COMPOSITION — how the system is WIRED together

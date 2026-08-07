@@ -30,6 +30,7 @@ export function createMediationSurface(mediation: Mediation): SurfacePort {
         cwd: req.cwd,
         parkIntent: req.parkIntent,
         parkReason: req.parkReason,
+        engine: req.engine,
       });
     },
 
@@ -41,6 +42,7 @@ export function createMediationSurface(mediation: Mediation): SurfacePort {
         clientRequestId: req.clientRequestId,
         parkIntent: req.parkIntent,
         parkReason: req.parkReason,
+        engine: req.engine,
       });
     },
 
@@ -54,6 +56,7 @@ export function createMediationSurface(mediation: Mediation): SurfacePort {
         expectedPackSnapshotHash: req.expectedPackSnapshotHash,
         parkIntent: req.parkIntent,
         parkReason: req.parkReason,
+        engine: req.engine,
       });
     },
 

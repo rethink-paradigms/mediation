@@ -22,6 +22,7 @@ import type {
   ModelSpec,
   ToolPolicy,
 } from "../../domain/definition.ts";
+import { ENGINE_KINDS } from "../../domain/engine.ts";
 import { MediationError } from "../../domain/errors.ts";
 import type { DefinitionLoader } from "../../ports/definition-loader.ts";
 
@@ -59,6 +60,7 @@ const AgentYamlSchema = z.object({
   ]),
 
   // Optional scalars
+  engine: z.enum(ENGINE_KINDS).optional(),
   thinking: z
     .enum(["off", "minimal", "low", "medium", "high", "xhigh", "max"])
     .optional(),
@@ -106,6 +108,7 @@ type ParsedAgentYaml = z.output<typeof AgentYamlSchema>;
 const KNOWN_TOP_KEYS = new Set([
   "name",
   "model",
+  "engine",
   "thinking",
   "agent_mode",
   "prompt",
@@ -218,6 +221,7 @@ export function mapYamlToDefinition(
       ? yaml.model
       : { provider: yaml.model.provider, id: yaml.model.id };
 
+  const engine = yaml.engine;
   const thinking = yaml.thinking;
   const agentMode = yaml.agent_mode;
   const activeTools = yaml.active_tools;
@@ -291,6 +295,7 @@ export function mapYamlToDefinition(
     name: ref.name,
     rootDir: path.resolve(ref.rootDir),
     model,
+    ...(engine !== undefined ? { engine } : {}),
     ...(thinking !== undefined ? { thinking } : {}),
     ...(prompt !== undefined ? { prompt } : {}),
     ...(skills !== undefined ? { skills } : {}),

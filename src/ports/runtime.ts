@@ -4,6 +4,7 @@
  */
 
 import type { AgentRef } from "../domain/definition.js";
+import type { EngineKind } from "../domain/engine.js";
 import type { RunId } from "../domain/engagement.js";
 import type { SessionRef } from "../domain/presence.js";
 
@@ -19,6 +20,8 @@ export type DispatchInput = {
    */
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
+  /** Per-call engine override (S2e) — serialized into the engagement leaf. */
+  readonly engine?: EngineKind;
 };
 
 export type DispatchHandle = {
@@ -41,6 +44,8 @@ export type PlanNodeSpec = {
   readonly agent: AgentRef;
   readonly task: string;
   readonly resume?: SessionRef;
+  /** Per-node engine pin (S2e) — forwarded to the node's engagement leaf. */
+  readonly engine?: EngineKind;
 };
 
 export type PlanEdgeSpec = {

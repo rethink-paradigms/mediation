@@ -182,6 +182,43 @@ describe("YamlDefinitionLoader — fail-closed", () => {
   });
 });
 
+describe("YamlDefinitionLoader — engine field (S2e)", () => {
+  it("engine: prime maps onto AgentDefinition.engine", () => {
+    const def = mapYamlToDefinition(
+      { name: "engine-agent", model: "p/m", engine: "prime", prompt: "x" },
+      { name: "engine-agent", rootDir: "/tmp/engine-agent" },
+      { loadPrompt: false },
+    );
+    assert.equal(def.engine, "prime");
+  });
+
+  it("engine: bogus → DEFINITION_INVALID", () => {
+    assert.throws(
+      () =>
+        mapYamlToDefinition(
+          { name: "bad-engine", model: "p/m", engine: "bogus" },
+          { name: "bad-engine", rootDir: "/tmp/bad" },
+          { loadPrompt: false },
+        ),
+      (err: unknown) => {
+        assert.ok(err instanceof MediationError);
+        assert.equal(err.code, "DEFINITION_INVALID");
+        return true;
+      },
+    );
+  });
+
+  it("engine is a KNOWN top-level key (not pushed into meta)", () => {
+    const def = mapYamlToDefinition(
+      { name: "known-key", model: "p/m", engine: "mock", futuristic: 1 },
+      { name: "known-key", rootDir: "/tmp/known" },
+      { loadPrompt: false },
+    );
+    assert.equal(def.engine, "mock");
+    assert.deepEqual(def.meta, { futuristic: 1 });
+  });
+});
+
 describe("YamlDefinitionLoader — model forms + inline prompt", () => {
   it("accepts structured model {provider,id}", () => {
     const def = mapYamlToDefinition(

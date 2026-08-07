@@ -1,0 +1,28 @@
+name: spawn-engage-local-observation
+description: |
+  Observe spawn-mode engageLocal facade. Routes through OW dispatch so
+  engagement leaf runs as a child process. Run with:
+    MEDIATION_SPAWN=1 MEDIATION_LIVE_OW=1 npx tsx scenario_harness/cli.ts init ...
+
+resources:
+  - type: capability-store
+    as: my-store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: definition
+    as: my-def
+    id: case-basic
+    name: case-basic
+    model: deepseek/deepseek-v4-flash
+
+  - type: facade
+    as: my-engage
+    agentName: case-basic
+    rootDir: fixtures/packs/case-basic
+    task: "spawn-mode engage local"
+    parkIntent: false
+    then:
+      - engage-local
+
+cleanup: true

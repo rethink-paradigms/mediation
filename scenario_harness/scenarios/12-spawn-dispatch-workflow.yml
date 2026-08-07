@@ -1,0 +1,29 @@
+name: spawn-dispatch-observation
+description: |
+  Observe spawn-mode workflow dispatch. OW Worker spawns engagement-runner
+  as a child process instead of running the leaf in-process. Run with:
+    MEDIATION_SPAWN=1 MEDIATION_LIVE_OW=1 npx tsx scenario_harness/cli.ts init ...
+
+resources:
+  - type: capability-store
+    as: my-store
+    variant: fs
+    projectRoot: fixtures/packs/case-basic
+
+  - type: definition
+    as: my-def
+    id: case-basic
+    name: case-basic
+    model: deepseek/deepseek-v4-flash
+
+  - type: engagement
+    as: my-run
+    agentName: case-basic
+    rootDir: fixtures/packs/case-basic
+    task: "observe spawn isolation"
+    parkIntent: false
+    until: completed
+    timeout: 30
+    interval: 5
+
+cleanup: true

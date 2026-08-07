@@ -10,6 +10,7 @@
  */
 
 import type { AgentDefinition } from "../../../domain/definition.ts";
+import { resolveEngineKind, type EngineKind } from "../../../domain/engine.ts";
 import { asRunId, type RunId } from "../../../domain/engagement.ts";
 import { asSessionRef } from "../../../domain/presence.ts";
 import type { PresenceFactory } from "../../../domain/presence.ts";
@@ -34,6 +35,13 @@ export type EngagementLeafDeps = {
    * If omitted, leaf synthesizes from requestId or a local counter.
    */
   readonly runId?: RunId | string;
+  /**
+   * Composition fallback engine for the leaf's in-run resolution
+   * (S2e §4.3): input.engine ?? definition.engine ?? defaultEngine ?? "pi".
+   * Threaded from the composition root (createHostedMediation / runner
+   * --default-engine) so join records match the factory's resolution.
+   */
+  readonly defaultEngine?: EngineKind;
 };
 
 let localRunSeq = 0;
@@ -51,6 +59,27 @@ function resolveRunId(deps: EngagementLeafDeps, input: EngagementWorkflowInput):
 
 function now(): string {
   return new Date().toISOString();
+}
+
+/**
+ * Fail-closed engine resolution for join/output records.
+ * Returns undefined (never throws) when the value is bogus — the leaf's own
+ * failure path carries the ENGINE_UNKNOWN code; the record engine is best-effort.
+ */
+function safeResolvedEngine(
+  input: EngagementWorkflowInput,
+  deps: EngagementLeafDeps,
+  definition?: AgentDefinition,
+): EngineKind | undefined {
+  try {
+    return resolveEngineKind({
+      override: input.engine,
+      config: definition?.engine,
+      defaultEngine: deps.defaultEngine,
+    });
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -73,7 +102,29 @@ export async function runEngagementLeaf(
     return {
       kind: "failed",
       error: { message, code: "DEFINITION_RESOLVE_FAILED" },
+      engine: safeResolvedEngine(input, deps),
     };
+  }
+
+  // S2e: resolve the run's engine in-leaf so the join record and every output
+  // variant carry the engine that actually drives materialize (the factory
+  // resolves the same precedence from the override it receives below).
+  // Fail-closed: a bogus serialized engine (input.engine) fails the leaf fast
+  // with an ENGINE_UNKNOWN failed output — never a silent fallback to pi.
+  let engine: EngineKind;
+  try {
+    engine = resolveEngineKind({
+      override: input.engine,
+      config: definition.engine,
+      defaultEngine: deps.defaultEngine,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: unknown }).code)
+        : "ENGINE_UNKNOWN";
+    return { kind: "failed", error: { message, code } };
   }
 
   let presence;
@@ -81,6 +132,7 @@ export async function runEngagementLeaf(
     presence = await deps.factory.materialize(definition, {
       resume: input.sessionRef ? asSessionRef(input.sessionRef) : undefined,
       cwd: input.agentRoot,
+      engine: input.engine,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -91,6 +143,7 @@ export async function runEngagementLeaf(
     return {
       kind: "failed",
       error: { message, code },
+      engine,
     };
   }
 
@@ -105,6 +158,7 @@ export async function runEngagementLeaf(
       packSnapshot: presence.packSnapshot,
       status: "engaging",
       updatedAt: now(),
+      engine,
     });
 
     const outcome = await presence.engage({
@@ -121,6 +175,7 @@ export async function runEngagementLeaf(
         sessionRef: outcome.sessionRef,
         packSnapshotHash: packHash,
         result: outcome.result,
+        engine,
       };
     }
 
@@ -136,6 +191,7 @@ export async function runEngagementLeaf(
           resumeToken: outcome.resumeToken,
         },
         updatedAt: now(),
+        engine,
       });
       return {
         kind: "parked",
@@ -143,6 +199,7 @@ export async function runEngagementLeaf(
         packSnapshotHash: packHash,
         reason: outcome.reason,
         resumeToken: outcome.resumeToken,
+        engine,
       };
     }
 
@@ -155,6 +212,7 @@ export async function runEngagementLeaf(
         message: outcome.error.message,
         code: outcome.error.code,
       },
+      engine,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -168,6 +226,7 @@ export async function runEngagementLeaf(
       sessionRef: sessionRefStr,
       packSnapshotHash: packHash,
       error: { message, code: "ENGAGE_FAILED" },
+      engine,
     };
   } finally {
     try {

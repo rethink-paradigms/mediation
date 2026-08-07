@@ -6,6 +6,9 @@
  * Parallel to registerEngagementWorkflow — plan nodes reuse the leaf, no
  * second monocoque door outside adapters/pi.
  *
+ * DAG v2: edges define dependencies; waves execute in parallel. Parked nodes
+ * block their wave's Promise.all until woken; subsequent waves wait.
+ *
  * ```ts
  * const ow = new OpenWorkflow({ backend });
  * registerPlanWorkflow(ow, { factory, join, resolveDefinition });
@@ -18,12 +21,14 @@
  * ```
  */
 
+import type { EngineKind } from "../../domain/engine.ts";
 import type { PlanSpec } from "../../ports/runtime.ts";
 import {
   defaultPlanWorkflowSpec,
   type WorkflowSpecRef,
 } from "./runtime.ts";
 import {
+  computePlanWaves,
   planNodeToEngagementInput,
   summarizePlanResults,
   type PlanNodeResult,
@@ -76,7 +81,21 @@ export type RegisterPlanWorkflowDeps = {
    * Each node runs as `${stepNamePrefix}-${node.id}`.
    */
   readonly stepNamePrefix?: string;
+  /**
+   * Optional spawn executor threaded to PlanLeafDeps.executeLeaf.
+   * When set, each plan node runs in a child process instead of in-process.
+   */
+  readonly executeLeaf?: (
+    input: import("./types.ts").EngagementWorkflowInput,
+    runId: string,
+  ) => Promise<import("./types.ts").EngagementWorkflowOutput>;
+  /**
+   * Composition fallback engine threaded to each node leaf (S2e) so join
+   * records / outputs carry the engine the registry factory resolves.
+   */
+  readonly defaultEngine?: EngineKind;
 };
+
 
 export type RegisterPlanWorkflowResult = {
   readonly planSpec: WorkflowSpecRef<PlanSpec, PlanWorkflowOutput>;
@@ -85,7 +104,7 @@ export type RegisterPlanWorkflowResult = {
 /**
  * implementWorkflow for the plan leaf on `ow`.
  * Call once per client before newWorker / runPlan.
- * Sequential v1: nodes in PlanSpec.nodes order; edges ignored.
+ * DAG v2: waves from computePlanWaves; parallel step.run within each wave.
  */
 export function registerPlanWorkflow(
   ow: PlanOwClient,
@@ -98,24 +117,37 @@ export function registerPlanWorkflow(
 
   ow.implementWorkflow(planSpec, async ({ input: plan, step, run }) => {
     const results: PlanNodeResult[] = [];
+    const waves = computePlanWaves(plan.nodes, plan.edges);
 
-    for (const node of plan.nodes) {
-      const outcome = await step.run(
-        { name: `${stepNamePrefix}-${node.id}` },
-        async () => {
-          return runEngagementLeaf(planNodeToEngagementInput(plan, node), {
-            factory: deps.factory,
-            join: deps.join,
-            resolveDefinition: deps.resolveDefinition,
-            runId: asRunId(`${run.id}:${node.id}`),
-          });
-        },
+    for (const wave of waves) {
+      const waveResults = await Promise.all(
+        wave.map((node) =>
+          step
+            .run({ name: `${stepNamePrefix}-${node.id}` }, async () => {
+              const nodeInput = planNodeToEngagementInput(plan, node);
+              const nodeRunId = asRunId(`${run.id}:${node.id}`);
+              if (deps.executeLeaf !== undefined) {
+                return deps.executeLeaf(nodeInput, nodeRunId);
+              }
+              return runEngagementLeaf(nodeInput, {
+                factory: deps.factory,
+                join: deps.join,
+                resolveDefinition: deps.resolveDefinition,
+                runId: nodeRunId,
+                defaultEngine: deps.defaultEngine,
+              });
+            })
+            .then((outcome) => ({ nodeId: node.id, outcome })),
+        ),
       );
-      results.push({ nodeId: node.id, outcome });
+      results.push(...waveResults);
     }
 
     return summarizePlanResults(plan.id, results);
   });
 
+
   return { planSpec };
 }
+
+

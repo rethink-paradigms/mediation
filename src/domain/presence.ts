@@ -4,6 +4,7 @@
  */
 
 import type { AgentDefinition } from "./definition.js";
+import type { EngineKind } from "./engine.js";
 import type { PackSnapshot } from "./packs.js";
 
 /** Branded durable cognitive artifact id/path. */
@@ -70,6 +71,11 @@ export type MaterializeOptions = {
   readonly cwd?: string;
   readonly mode?: "headless" | "attached";
   readonly surface?: AttachSurface;
+  /**
+   * Per-call engine override (S2e). Resolution precedence inside the
+   * factory: override > effective config-layer > defaultEngine > "pi".
+   */
+  readonly engine?: EngineKind;
 };
 
 /**

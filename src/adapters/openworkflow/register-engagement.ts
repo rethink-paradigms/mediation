@@ -15,6 +15,7 @@
  * ```
  */
 
+import type { EngineKind } from "../../domain/engine.ts";
 import type {
   EngagementWorkflowInput,
   EngagementWorkflowOutput,
@@ -26,8 +27,10 @@ import {
 import type { EngagementLeafDeps } from "./workflows/engagement.ts";
 import {
   runEngagementArc,
+  type EngagementArcDeps,
   type EngagementArcStep,
 } from "./workflows/engagement-arc.ts";
+
 
 /**
  * Minimal OpenWorkflow client face used for registration + worker.
@@ -66,7 +69,18 @@ export type RegisterEngagementWorkflowDeps = {
    * Durable step name for the first leaf inside the arc (default: engagement-leaf).
    */
   readonly stepName?: string;
+  /**
+   * Optional spawn executor threaded to EngagementArcDeps.executeLeaf.
+   * When set, each leaf runs in a child process instead of in-process.
+   */
+  readonly executeLeaf?: EngagementArcDeps["executeLeaf"];
+  /**
+   * Composition fallback engine (S2e) threaded to the arc → leaf so join
+   * records / outputs carry the engine the registry factory resolves.
+   */
+  readonly defaultEngine?: EngineKind;
 };
+
 
 export type RegisterEngagementWorkflowResult = {
   readonly engagementSpec: WorkflowSpecRef<
@@ -96,9 +110,14 @@ export function registerEngagementWorkflow(
         factory: deps.factory,
         join: deps.join,
         resolveDefinition: deps.resolveDefinition,
+        executeLeaf: deps.executeLeaf,
+        defaultEngine: deps.defaultEngine,
       },
     });
   });
 
+
   return { engagementSpec };
 }
+
+

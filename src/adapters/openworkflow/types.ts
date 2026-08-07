@@ -3,6 +3,8 @@
  * JSON-safe only — no class instances, no EnginePort handles.
  */
 
+import type { EngineKind } from "../../domain/engine.ts";
+
 /**
  * Workflow input for a single-agent engagement leaf / arc slice.
  * `agentName` + `agentRoot` identify the agent; definition loading is injected
@@ -32,6 +34,13 @@ export type EngagementWorkflowInput = {
   readonly parkReason?: string;
   /** Engage mode for this leaf slice (default engine/presence: prompt). */
   readonly engageMode?: "prompt" | "continue";
+  /**
+   * Per-call engine override (S2e). Serialized from DispatchInput.engine /
+   * PlanNodeSpec.engine; the leaf passes it into materialize and resolves the
+   * full precedence (override > definition.engine > defaultEngine > "pi") for
+   * the join record + output variants.
+   */
+  readonly engine?: EngineKind;
 };
 
 /**
@@ -43,6 +52,8 @@ export type EngagementWorkflowOutput =
       readonly sessionRef: string;
       readonly packSnapshotHash: string;
       readonly result?: unknown;
+      /** Engine the run materialized on (S2e) — join records it. */
+      readonly engine?: EngineKind;
     }
   | {
       readonly kind: "parked";
@@ -50,6 +61,8 @@ export type EngagementWorkflowOutput =
       readonly packSnapshotHash: string;
       readonly reason: string;
       readonly resumeToken: string;
+      /** Engine the run materialized on (S2e) — join records it. */
+      readonly engine?: EngineKind;
     }
   | {
       readonly kind: "failed";
@@ -59,6 +72,8 @@ export type EngagementWorkflowOutput =
         readonly message: string;
         readonly code?: string;
       };
+      /** Engine the run materialized on (S2e) — join records it. */
+      readonly engine?: EngineKind;
     };
 
 /** Canonical workflow name registered with OpenWorkflow workers. */

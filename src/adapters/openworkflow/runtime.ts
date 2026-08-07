@@ -119,6 +119,7 @@ function toEngagementInput(input: DispatchInput): EngagementWorkflowInput {
     requestId: input.clientRequestId,
     parkIntent: input.parkIntent,
     parkReason: input.parkReason,
+    engine: input.engine,
   };
 }
 

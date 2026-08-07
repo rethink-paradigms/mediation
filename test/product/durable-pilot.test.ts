@@ -16,7 +16,10 @@ import {
   resolveHostedJoin,
 } from "../../src/adapters/compose.ts";
 import { createCapabilityResolver } from "../../src/adapters/capability/resolve.ts";
-import { createFsCapabilityStore } from "../../src/adapters/capability/fs-store.ts";
+import {
+  createFsCapabilityStore,
+  resolveFsModule,
+} from "../../src/adapters/capability/fs-store.ts";
 import { MemoryJoinStore } from "../../src/adapters/join/memory-store.ts";
 import { SqliteJoinStore } from "../../src/adapters/join/sqlite-store.ts";
 import { capabilitySpecFromDefinition } from "../../src/app/factory.ts";
@@ -29,6 +32,14 @@ const CODING_AGENT_ROOT = path.join(COMPANY_ROOT, "agents", "coding-agent");
 const hasCodingAgent = fs.existsSync(
   path.join(CODING_AGENT_ROOT, "agent.yaml"),
 );
+// Optional real-tree pilot: also requires the coding capability tree to be
+// resolvable through the store's search order at the company root. The
+// company reorganized coding extensions under extensions/coding/ on
+// 2026-07-24 — bare-name resolution at root no longer applies there, so the
+// pilot skips (same "skip if absent" contract) instead of failing.
+const hasCodingCapabilityTree =
+  hasCodingAgent &&
+  resolveFsModule("coding-repo-map", COMPANY_ROOT) !== null;
 
 describe("PRODUCT-1 resolveHostedJoin policy", () => {
   it("memory dbPath → MemoryJoinStore when join omitted", () => {
@@ -181,7 +192,7 @@ describe("PRODUCT-1 durable hosted dispatch (mock mind, file sqlite)", () => {
 describe("PRODUCT-1 optional coding-agent pilot (skip if absent)", () => {
   it(
     "loads coding-agent and CapabilityResolver ok against company root",
-    { skip: !hasCodingAgent },
+    { skip: !hasCodingCapabilityTree },
     async () => {
       const { mediation } = createLocalMediation({
         mockEngine: true,
@@ -217,7 +228,7 @@ describe("PRODUCT-1 optional coding-agent pilot (skip if absent)", () => {
 
   it(
     "engageLocal mock mind Settled for coding-agent (capability path)",
-    { skip: !hasCodingAgent },
+    { skip: !hasCodingCapabilityTree },
     async () => {
       const { mediation } = createLocalMediation({
         mockEngine: true,

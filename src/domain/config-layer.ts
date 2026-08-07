@@ -10,6 +10,7 @@ import {
   asCapabilityId,
   type CapabilityId,
 } from "./capability.ts";
+import type { EngineKind } from "./engine.ts";
 import type { ToolPolicy } from "./definition.ts";
 
 /** Provenance of a capability/policy declaration layer. */
@@ -24,6 +25,12 @@ export type CapabilitySpec = {
   /** Partial tool policy; fields merge per v1 rules (see mergeCapabilitySpecs). */
   readonly tools?: Readonly<ToolPolicy>;
   readonly skills?: readonly string[];
+  /**
+   * Engine policy layer — later layer overrides earlier (identical to
+   * tools.agentMode). Root · family · agent all declare; the effective
+   * spec carries the winning engine for the factory's config layer.
+   */
+  readonly engine?: EngineKind;
 };
 
 /** One in-memory layer contribution (no path required). */
@@ -40,6 +47,8 @@ export type EffectiveCapabilitySpec = {
   readonly extensions: readonly CapabilityId[];
   readonly tools: ToolPolicy;
   readonly skills: readonly string[];
+  /** Winning engine after root → family → agent (absent when none declared). */
+  readonly engine?: EngineKind;
 };
 
 const KIND_ORDER: Readonly<Record<ConfigLayerKind, number>> = {
@@ -80,6 +89,7 @@ function orderedUniqueCapabilityIds(
  * - **tools.exclude** — ordered unique union
  * - **tools.agentMode** — later layer overrides earlier
  * - **tools.activeTools** — later layer replaces earlier (not unioned)
+ * - **engine** — later layer overrides earlier (identical to tools.agentMode)
  */
 export function mergeCapabilitySpecs(
   layers: readonly ConfigLayer[],
@@ -99,6 +109,7 @@ export function mergeCapabilitySpecs(
   const excludeAcc: string[] = [];
   let agentMode: ToolPolicy["agentMode"] | undefined;
   let activeTools: readonly string[] | undefined;
+  let engine: EngineKind | undefined;
 
   for (const { spec } of sorted) {
     if (spec.extensions !== undefined) {
@@ -106,6 +117,9 @@ export function mergeCapabilitySpecs(
     }
     if (spec.skills !== undefined) {
       skillAcc.push(...spec.skills);
+    }
+    if (spec.engine !== undefined) {
+      engine = spec.engine;
     }
     const tools = spec.tools;
     if (tools === undefined) continue;
@@ -144,6 +158,7 @@ export function mergeCapabilitySpecs(
     extensions: orderedUniqueCapabilityIds(extensionAcc),
     tools,
     skills: orderedUniqueStrings(skillAcc),
+    ...(engine !== undefined ? { engine } : {}),
   };
 }
 

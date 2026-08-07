@@ -21,6 +21,7 @@
 import { OpenWorkflow } from "openworkflow";
 import { BackendSqlite } from "openworkflow/sqlite";
 
+import type { EngineKind } from "../../domain/engine.ts";
 import type { PresenceFactory } from "../../domain/presence.ts";
 import type { JoinStore } from "../../ports/join.ts";
 import type { PlanSpec, RuntimePort } from "../../ports/runtime.ts";
@@ -32,12 +33,15 @@ import {
 import { registerPlanWorkflow } from "./register-plan.ts";
 import {
   OpenWorkflowRuntime,
+  defaultEngagementWorkflowSpec,
   type WorkflowSpecRef,
 } from "./runtime.ts";
+import { createSpawnLeaf, type SpawnLeafConfig } from "./spawn-leaf.ts";
 import type {
   EngagementWorkflowInput,
   EngagementWorkflowOutput,
 } from "./types.ts";
+
 
 /** Worker face returned by OpenWorkflow.newWorker (start / stop / tick). */
 export type RuntimeHostWorker = {
@@ -75,7 +79,22 @@ export type CreateSqliteRuntimeHostOptions = {
     EngagementWorkflowInput,
     EngagementWorkflowOutput
   >;
+  /**
+   * When set, engagement leaves are executed as child processes instead of
+   * running in-process. Each leaf spawns engagement-runner.ts, resolves its
+   * own factory, and exits with the outcome as JSON.
+   *
+   * Use for the production daemon (process isolation). Omit for tests and
+   * :memory: in-process usage.
+   */
+  readonly spawnConfig?: SpawnLeafConfig;
+  /**
+   * Composition fallback engine (S2e) threaded to the in-process leaf so
+   * join records / outputs carry the engine the registry factory resolves.
+   */
+  readonly defaultEngine?: EngineKind;
 };
+
 
 export type SqliteRuntimeHost = {
   readonly runtime: RuntimePort;
@@ -100,20 +119,31 @@ export function createSqliteRuntimeHost(
   const ow = new OpenWorkflow({ backend });
   const join = opts.join ?? new MemoryJoinStore();
 
+  // Build spawn executor when spawnConfig is provided; else undefined = in-process.
+  const executeLeaf =
+    opts.spawnConfig !== undefined
+      ? createSpawnLeaf(opts.spawnConfig)
+      : undefined;
+
   const leafDeps = {
     factory: opts.factory,
     join,
     resolveDefinition: opts.resolveDefinition,
+    executeLeaf,
   };
 
   const { engagementSpec } = registerEngagementWorkflow(ow, {
     ...leafDeps,
     engagementSpec: opts.engagementSpec,
+    defaultEngine: opts.defaultEngine,
   });
 
   let planSpec: WorkflowSpecRef<PlanSpec, unknown> | undefined;
   if (opts.registerPlan) {
-    const registered = registerPlanWorkflow(ow, leafDeps);
+    const registered = registerPlanWorkflow(ow, {
+      ...leafDeps,
+      defaultEngine: opts.defaultEngine,
+    });
     planSpec = registered.planSpec as WorkflowSpecRef<PlanSpec, unknown>;
   }
 
@@ -157,3 +187,43 @@ export function createSqliteRuntimeHost(
     },
   };
 }
+
+// ── Lightweight runtime client (no worker) ───────────────────────────────────
+
+export type SqliteRuntimeClient = {
+  readonly runtime: RuntimePort;
+  stop(): Promise<void>;
+};
+
+/**
+ * Build a RuntimePort backed by a SQLite OW backend with NO worker.
+ * Use in the mediation surface process: dispatch/signal/status/wait write
+ * to the shared DB; a separate OW Worker process claims and executes runs.
+ *
+ * ```ts
+ * const client = createRuntimeClient({ dbPath: "/data/mediation-ow.sqlite" });
+ * await client.runtime.dispatch({ agentName: "web-researcher", task: "..." });
+ * await client.stop();
+ * ```
+ */
+export function createRuntimeClient(opts: {
+  readonly dbPath: string;
+  readonly pollIntervalMs?: number;
+}): SqliteRuntimeClient {
+  const backend = BackendSqlite.connect(opts.dbPath);
+  const ow = new OpenWorkflow({ backend });
+  const runtime = new OpenWorkflowRuntime({
+    ow,
+    backend: { getWorkflowRun: (params) => backend.getWorkflowRun(params) },
+    engagementSpec: defaultEngagementWorkflowSpec(),
+    pollIntervalMs: opts.pollIntervalMs,
+  });
+  return {
+    runtime,
+    async stop() {
+      await backend.stop();
+    },
+  };
+}
+
+

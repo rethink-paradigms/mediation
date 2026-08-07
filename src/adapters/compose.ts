@@ -15,6 +15,9 @@
 import path from "node:path";
 
 import { DefaultPresenceFactory } from "../app/factory.ts";
+import type { EngineKind } from "../domain/engine.ts";
+import { createEngineRegistry } from "./engine-registry.ts";
+import type { EngineRegistry } from "../ports/engine.ts";
 import { Mediation, type MediationDeps } from "../app/mediation.ts";
 import type { CapabilityResolver } from "../ports/capability-resolver.ts";
 import type { CapabilityStore } from "../ports/capability-store.ts";
@@ -27,7 +30,6 @@ import {
 } from "./definition/yaml-definition-loader.ts";
 import { MemoryJoinStore } from "./join/memory-store.ts";
 import { SqliteJoinStore } from "./join/sqlite-store.ts";
-import { MockEnginePort } from "./mock/engine-adapter.ts";
 import { toPackSnapshot } from "./packs/pack-snapshot.ts";
 import {
   createPiPresenceFactory,
@@ -40,7 +42,9 @@ import {
   type RuntimeHostWorker,
   type SqliteRuntimeHost,
 } from "./openworkflow/host.ts";
+import type { SpawnLeafConfig } from "./openworkflow/spawn-leaf.ts";
 import type { RegisterEngagementWorkflowDeps } from "./openworkflow/register-engagement.ts";
+
 
 /** Default durable join file next to OW BackendSqlite path (PRODUCT-1). */
 export function defaultHostedJoinPath(dbPath: string): string {
@@ -77,6 +81,17 @@ export type CreateLocalMediationOptions = {
   /** When mockEngine is false, Pi factory options. */
   readonly pi?: CreatePiPresenceFactoryOptions;
   /**
+   * Composition fallback engine for resolveEngineKind (S2e).
+   * Explicit `defaultEngine` wins over legacy `mockEngine` mapping:
+   * mockEngine:false → "pi"; mockEngine:true|undefined → "mock".
+   */
+  readonly defaultEngine?: EngineKind;
+  /**
+   * Explicit EngineRegistry (test injection). When omitted, compose builds
+   * createEngineRegistry() (pi/mock eager-or-lazy, prime lazy dynamic import).
+   */
+  readonly engineRegistry?: EngineRegistry;
+  /**
    * Explicit CapabilityResolver (preferred when set).
    * CUT: sole materialize resolve path.
    */
@@ -109,6 +124,15 @@ type MindWiring = {
   readonly join: JoinStore;
 };
 
+/** Composition default engine: explicit wins; else legacy mockEngine mapping. */
+export function resolveCompositionDefaultEngine(opts: {
+  readonly defaultEngine?: EngineKind;
+  readonly mockEngine?: boolean;
+}): EngineKind {
+  if (opts.defaultEngine !== undefined) return opts.defaultEngine;
+  return opts.mockEngine === false ? "pi" : "mock";
+}
+
 function wireMind(opts: CreateLocalMediationOptions): MindWiring {
   const loader = createYamlDefinitionLoader(opts.loaderOptions);
   const join = opts.join ?? new MemoryJoinStore();
@@ -119,24 +143,32 @@ function wireMind(opts: CreateLocalMediationOptions): MindWiring {
     fsStoreOptions: opts.fsStoreOptions,
   });
 
-  let factory: MediationDeps["factory"];
-  if (opts.mockEngine === false) {
-    const composed = createPiPresenceFactory({
-      ...opts.pi,
-      projectRoot: opts.pi?.projectRoot ?? opts.projectRoot,
-      capabilityResolver:
-        opts.pi?.capabilityResolver ?? capabilityResolver,
-      capabilityStore: opts.pi?.capabilityStore ?? opts.capabilityStore,
-      fsStoreOptions: opts.pi?.fsStoreOptions ?? opts.fsStoreOptions,
-    });
-    factory = composed.factory;
-  } else {
-    factory = new DefaultPresenceFactory({
-      engine: new MockEnginePort(),
-      toPackSnapshot,
-      capabilityResolver,
-    });
-  }
+  // Legacy `pi` composition options → custom pi factory in the registry
+  // (keeps PiEngineAdapter sessionFactory/auth/inMemory/log wiring intact).
+  const piFactory =
+    opts.pi !== undefined
+      ? () =>
+          createPiPresenceFactory({
+            ...opts.pi!,
+            projectRoot: opts.pi!.projectRoot ?? opts.projectRoot,
+            capabilityResolver:
+              opts.pi!.capabilityResolver ?? capabilityResolver,
+            capabilityStore:
+              opts.pi!.capabilityStore ?? opts.capabilityStore,
+            fsStoreOptions: opts.pi!.fsStoreOptions ?? opts.fsStoreOptions,
+          }).engine
+      : undefined;
+
+  const registry =
+    opts.engineRegistry ??
+    createEngineRegistry(piFactory !== undefined ? { pi: piFactory } : {});
+
+  const factory = new DefaultPresenceFactory({
+    registry,
+    defaultEngine: resolveCompositionDefaultEngine(opts),
+    toPackSnapshot,
+    capabilityResolver,
+  });
 
   return { loader, factory, join };
 }
@@ -190,7 +222,15 @@ export type CreateHostedMediationOptions = CreateLocalMediationOptions & {
   readonly resolveDefinition?: RegisterEngagementWorkflowDeps["resolveDefinition"];
   /** Override engagement WorkflowSpec (must match registered name). */
   readonly engagementSpec?: CreateSqliteRuntimeHostOptions["engagementSpec"];
+  /**
+   * When set, engagement leaves run as isolated child processes.
+   * Omit for in-process usage (:memory: tests). Set for the production daemon.
+   * If omitted but dbPath is a file, joinPath is derived automatically when
+   * building SpawnLeafConfig — supply explicitly for full control.
+   */
+  readonly spawnConfig?: SpawnLeafConfig;
 };
+
 
 export type HostedMediationComposition = {
   readonly mediation: Mediation;
@@ -239,6 +279,24 @@ export function createHostedMediation(
         rootDir: inp.agentRoot,
       }));
 
+  // S2e: the hosted composition default flows into both the in-process leaf
+  // (CreateSqliteRuntimeHostOptions.defaultEngine) and, when spawn mode is
+  // used, the child runner (--default-engine) so records match the factory.
+  const defaultEngine = resolveCompositionDefaultEngine(opts);
+  const spawnConfig: SpawnLeafConfig | undefined =
+    opts.spawnConfig === undefined
+      ? undefined
+      : {
+          ...opts.spawnConfig,
+          defaultEngine:
+            opts.spawnConfig.defaultEngine ??
+            (opts.spawnConfig.usePi === true
+              ? "pi"
+              : opts.spawnConfig.usePi === false
+                ? "mock"
+                : defaultEngine),
+        };
+
   const host = createSqliteRuntimeHost({
     dbPath: opts.dbPath,
     factory,
@@ -248,7 +306,10 @@ export function createHostedMediation(
     concurrency: opts.concurrency,
     pollIntervalMs: opts.pollIntervalMs,
     engagementSpec: opts.engagementSpec,
+    spawnConfig,
+    defaultEngine,
   });
+
 
   const mediation = new Mediation({
     loader,
@@ -269,3 +330,4 @@ export function createHostedMediation(
     },
   };
 }
+

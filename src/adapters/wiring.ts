@@ -1,5 +1,6 @@
 /**
- * Composition root: wire PiEngineAdapter + CapabilityResolver + DefaultPresenceFactory.
+ * Composition root: wire PiEngineAdapter / PrimeEngineAdapter + CapabilityResolver +
+ * DefaultPresenceFactory.
  *
  * Not app layer (app stays domain + ports only). Not a second product door —
  * composition / tests import this module; public `src/index.ts` does not re-export Pi.
@@ -30,6 +31,8 @@ import { createCapabilityResolver } from "./capability/resolve.ts";
 import { toPackSnapshot } from "./packs/pack-snapshot.ts";
 import { PiEngineAdapter } from "./pi/engine-adapter.ts";
 import type { PiEngineAdapterOptions } from "./pi/types.ts";
+import { PrimeEngineAdapter } from "./prime/engine-adapter.ts";
+import type { PrimeEngineAdapterOptions } from "./prime/types.ts";
 
 export type CreatePiPresenceFactoryOptions = PiEngineAdapterOptions & {
   /** Snapshot fn (default: adapters/packs.toPackSnapshot). */
@@ -107,6 +110,56 @@ export function createPiPresenceFactory(
   } = opts;
 
   const engine = new PiEngineAdapter(engineOpts);
+  const factory = new DefaultPresenceFactory({
+    engine,
+    toPackSnapshot: snapFn ?? toPackSnapshot,
+    capabilityResolver: resolveCapabilityResolver(opts),
+  });
+
+  return { factory, engine };
+}
+
+// ==========================================================================
+// Prime engine slice (parallel to Pi) — same composition contract.
+// ==========================================================================
+
+export type CreatePrimePresenceFactoryOptions = PrimeEngineAdapterOptions & {
+  /** Snapshot fn (default: adapters/packs.toPackSnapshot). */
+  readonly toPackSnapshot?: PackSnapshotFn;
+  /** Project / pack root for default FsCapabilityStore when no resolver/store set. */
+  readonly projectRoot?: string;
+  /** Explicit CapabilityResolver (preferred when set). */
+  readonly capabilityResolver?: CapabilityResolver;
+  /** When resolver omitted, wrap this store via createCapabilityResolver. */
+  readonly capabilityStore?: CapabilityStore;
+  /** Options for default FsCapabilityStore (homeDir override for tests). */
+  readonly fsStoreOptions?: Omit<FsCapabilityStoreOptions, "projectRoot">;
+};
+
+/** Result of createPrimePresenceFactory — factory is the product; engine for inspection. */
+export type PrimePresenceComposition = {
+  readonly factory: DefaultPresenceFactory;
+  readonly engine: PrimeEngineAdapter;
+};
+/**
+ * Build DefaultPresenceFactory over real PrimeEngineAdapter (+ capability
+ * resolve). Parallel to createPiPresenceFactory — same composition contract,
+ * fork deltas live in adapters/prime only.
+ * Inject sessionFactory for unit path without live Prime open.
+ */
+export function createPrimePresenceFactory(
+  opts: CreatePrimePresenceFactoryOptions = {},
+): PrimePresenceComposition {
+  const {
+    toPackSnapshot: snapFn,
+    capabilityResolver: _cr,
+    capabilityStore: _cs,
+    fsStoreOptions: _fs,
+    projectRoot: _pr,
+    ...engineOpts
+  } = opts;
+
+  const engine = new PrimeEngineAdapter(engineOpts);
   const factory = new DefaultPresenceFactory({
     engine,
     toPackSnapshot: snapFn ?? toPackSnapshot,

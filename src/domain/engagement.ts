@@ -2,6 +2,7 @@
  * Dual-durability join types (D0 P4) — product correlation of OW run ⨝ session.
  */
 
+import type { EngineKind } from "./engine.js";
 import type { PackSnapshot } from "./packs.js";
 import type { SessionRef } from "./presence.js";
 
@@ -41,4 +42,9 @@ export type EngagementRecord = {
     readonly resumeToken: string;
   };
   readonly updatedAt: string;
+  /**
+   * Engine the run materialized on (S2e). Written by the engagement leaf;
+   * reenter / wake reuse it to pin the engine of the creating run.
+   */
+  readonly engine?: EngineKind;
 };

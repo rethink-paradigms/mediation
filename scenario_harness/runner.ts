@@ -1,3 +1,6 @@
+import path from "node:path";
+import { rmSync } from "node:fs";
+
 import type {
   RunnerPort,
   RunnerResult,
@@ -23,12 +26,18 @@ import {
 } from "../src/index.ts";
 import { MockEnginePort } from "../src/adapters/mock/engine-adapter.ts";
 import { PiEngineAdapter } from "../src/adapters/pi/engine-adapter.ts";
+import { SqliteJoinStore } from "../src/adapters/join/sqlite-store.ts";
 import { createSqliteRuntimeHost, type SqliteRuntimeHost } from "../src/adapters/openworkflow/host.ts";
+import type { SpawnLeafConfig } from "../src/adapters/openworkflow/spawn-leaf.ts";
+import type { EngagementWorkflowOutput } from "../src/adapters/openworkflow/types.ts";
 
 export class MediationRunner implements RunnerPort {
   private liveObjects = new Map<string, unknown>();
   private workflowStatuses = new Map<string, RuntimeStatus>();
   private runtimeHost: SqliteRuntimeHost | null = null;
+  private spawnJoin: SqliteJoinStore | null = null;
+  /** Track spawn SQLite files for cleanup across scenario init cycles. */
+  private spawnCleanupPaths: { dbPath?: string; joinPath?: string } = {};
 
   async execute(
     op: PlanOperation,
@@ -165,6 +174,13 @@ export class MediationRunner implements RunnerPort {
     params: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     const runId = params.runId as string;
+    if (process.env.MEDIATION_LIVE_OW === "1") {
+      // Cross-process: connect to the file-backed OW backend so a later CLI
+      // invocation can read runs dispatched by an earlier one.
+      const host = await this.getOrCreateRuntimeHost();
+      const status = await host.runtime.getStatus(asRunId(runId));
+      return status as unknown as Record<string, unknown>;
+    }
     if (this.runtimeHost) {
       const status = await this.runtimeHost.runtime.getStatus(asRunId(runId));
       return status as unknown as Record<string, unknown>;
@@ -172,9 +188,68 @@ export class MediationRunner implements RunnerPort {
     const status = this.workflowStatuses.get(runId) ?? { state: "pending" };
     return status as unknown as Record<string, unknown>;
   }
+  // ── Spawn mode config ──────────────────────────────────────────────────
+
+  private resolveSpawnConfig(): SpawnLeafConfig | undefined {
+    if (process.env.MEDIATION_SPAWN !== "1") return undefined;
+    const resultsDir = process.env.MEDIATION_RESULTS_DIR
+      ?? path.resolve("results");
+    return {
+      joinPath: process.env.MEDIATION_SPAWN_JOIN_PATH
+        ?? path.join(resultsDir, "spawn-join.sqlite"),
+      projectRoot: process.env.MEDIATION_SPAWN_PROJECT_ROOT,
+      usePi: process.env.MEDIATION_LIVE_PI === "1",
+    };
+  }
+
+  private cleanupSpawnFiles(): void {
+    const { dbPath, joinPath } = this.spawnCleanupPaths;
+    if (dbPath) {
+      try { rmSync(dbPath); } catch {
+        // ignore
+      }
+      try { rmSync(dbPath + "-wal"); } catch {
+        // ignore
+      }
+      try { rmSync(dbPath + "-shm"); } catch {
+        // ignore
+      }
+    }
+    if (joinPath) {
+      try { rmSync(joinPath); } catch {
+        // ignore
+      }
+      try { rmSync(joinPath + "-wal"); } catch {
+        // ignore
+      }
+      try { rmSync(joinPath + "-shm"); } catch {
+        // ignore
+      }
+    }
+    this.spawnCleanupPaths = {};
+  }
+
+  /**
+   * Stop the OW worker + backend so one-shot CLI processes can exit.
+   * The OW worker's poll loop keeps the Node event loop alive; without this
+   * the CLI hangs after its last command. Persisted spawn SQLite files are
+   * intentionally left in place — later CLI invocations (next `step`) reconnect
+   * to the same file-backed OW backend.
+   */
+  async stop(): Promise<void> {
+    if (this.runtimeHost) {
+      await this.runtimeHost.stop();
+      this.runtimeHost = null;
+    }
+    if (this.spawnJoin !== null) {
+      this.spawnJoin.close();
+      this.spawnJoin = null;
+    }
+  }
 
   private async getOrCreateRuntimeHost(store?: CapabilityStore): Promise<SqliteRuntimeHost> {
     if (!this.runtimeHost) {
+      const spawnConfig = this.resolveSpawnConfig();
       const actualStore = store || new MemoryCapabilityStore();
       const resolver = createCapabilityResolver(actualStore);
       const engine = process.env.MEDIATION_LIVE_PI === "1"
@@ -189,15 +264,36 @@ export class MediationRunner implements RunnerPort {
         capabilityResolver: resolver,
       });
 
+      const dbPath = spawnConfig !== undefined
+        ? (process.env.MEDIATION_SPAWN_DB_PATH ?? path.resolve("results", "spawn-ow.sqlite"))
+        : ":memory:";
+
+      // Clean up previous spawn files before creating new ones
+      if (this.spawnCleanupPaths.dbPath) {
+        this.cleanupSpawnFiles();
+      }
+
+      // Spawn mode: parent reads the same join SQLite file the child writes.
+      if (spawnConfig !== undefined && this.spawnJoin === null) {
+        this.spawnJoin = new SqliteJoinStore({ path: spawnConfig.joinPath });
+      }
+
       this.runtimeHost = createSqliteRuntimeHost({
-        dbPath: ":memory:",
+        dbPath,
+        join: this.spawnJoin ?? undefined,
         factory,
         resolveDefinition: async (ref) => {
           const loader = new YamlDefinitionLoader();
           return await loader.load(ref);
         },
+        spawnConfig,
       });
       await this.runtimeHost.worker.start();
+
+      // Track for cleanup
+      if (spawnConfig && typeof dbPath === "string") {
+        this.spawnCleanupPaths = { dbPath, joinPath: spawnConfig.joinPath };
+      }
     }
     return this.runtimeHost;
   }
@@ -277,6 +373,11 @@ export class MediationRunner implements RunnerPort {
 
   private async handleCancelWorkflow(params: Record<string, unknown>): Promise<Record<string, unknown>> {
     const runId = params.runId as string;
+    if (process.env.MEDIATION_LIVE_OW === "1") {
+      const host = await this.getOrCreateRuntimeHost();
+      await host.runtime.cancel(asRunId(runId));
+      return { success: true };
+    }
     if (this.runtimeHost) {
       await this.runtimeHost.runtime.cancel(asRunId(runId));
       return { success: true };
@@ -288,6 +389,13 @@ export class MediationRunner implements RunnerPort {
   private async handleWakeWorkflow(params: Record<string, unknown>): Promise<Record<string, unknown>> {
     const runId = params.runId as string;
     const text = params.text as string;
+    if (process.env.MEDIATION_LIVE_OW === "1") {
+      const host = await this.getOrCreateRuntimeHost();
+      await host.runtime.sendSignal(asRunId(runId), "wake", {
+        payloadText: text,
+      });
+      return { success: true };
+    }
     if (this.runtimeHost) {
       await this.runtimeHost.runtime.sendSignal(asRunId(runId), "wake", {
         payloadText: text,
@@ -301,6 +409,16 @@ export class MediationRunner implements RunnerPort {
 
   private async handleGetWorkflowJoin(params: Record<string, unknown>): Promise<Record<string, unknown>> {
     const runId = params.runId as string;
+    if (process.env.MEDIATION_LIVE_OW === "1") {
+      const host = await this.getOrCreateRuntimeHost();
+      const record = await host.join.getByRunId(asRunId(runId));
+      if (!record) throw new Error("Join record not found for runId: " + runId);
+      return {
+        sessionRef: record.sessionRef,
+        packSnapshotHash: record.packSnapshot.planHash,
+        status: record.status,
+      };
+    }
     if (this.runtimeHost) {
       const record = await this.runtimeHost.join.getByRunId(asRunId(runId));
       if (!record) throw new Error("Join record not found for runId: " + runId);
@@ -323,7 +441,28 @@ export class MediationRunner implements RunnerPort {
     const task = params.task as string;
     const parkIntent = (params.parkIntent as boolean) || false;
 
-    // A: Reuse existing live objects
+    // Spawn path: route through OW dispatch so engagement runs as child process
+    const spawnConfig = this.resolveSpawnConfig();
+    if (spawnConfig && process.env.MEDIATION_LIVE_OW === "1") {
+      const host = await this.getOrCreateRuntimeHost();
+      const handle = await host.runtime.dispatch({
+        agent: { name: agentName, rootDir },
+        task,
+        parkIntent,
+      });
+      const finalStatus = await host.runtime.wait(handle.runId);
+      const outcome = finalStatus.result as EngagementWorkflowOutput | undefined;
+      const join = await host.join.getByRunId(asRunId(handle.runId));
+      return {
+        runId: handle.runId,
+        kind: outcome?.kind ?? "settled",
+        sessionRef: join?.sessionRef ?? "unknown",
+        packSnapshotHash: join?.packSnapshot?.planHash ?? "unknown",
+        definitionId: join?.definitionId ?? agentName,
+      };
+    }
+
+    // In-process path (existing logic)
     let store = Array.from(this.liveObjects.values()).find(
       (o) => o instanceof MemoryCapabilityStore || o instanceof FsCapabilityStore,
     ) as CapabilityStore;
@@ -361,3 +500,4 @@ export class MediationRunner implements RunnerPort {
     };
   }
 }
+

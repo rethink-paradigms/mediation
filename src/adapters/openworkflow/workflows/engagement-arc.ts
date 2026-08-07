@@ -13,6 +13,7 @@
  * Never openSession / resolve packs here — leaf only.
  */
 
+import type { EngineKind } from "../../../domain/engine.ts";
 import {
   engagementWakeSignal,
   parseWakeSignalData,
@@ -54,7 +55,22 @@ export type EngagementArcDeps = {
   readonly factory: EngagementLeafDeps["factory"];
   readonly join: EngagementLeafDeps["join"];
   readonly resolveDefinition: EngagementLeafDeps["resolveDefinition"];
+  /**
+   * Optional spawn executor. When provided the arc calls this instead of
+   * runEngagementLeaf in-process, enabling child-process isolation.
+   * Each leaf runs in its own Node process; a crash kills only that child.
+   */
+  readonly executeLeaf?: (
+    input: EngagementWorkflowInput,
+    runId: string,
+  ) => Promise<EngagementWorkflowOutput>;
+  /**
+   * Composition fallback engine threaded to the leaf (S2e) so the join
+   * record / outputs carry the same engine the registry factory resolves.
+   */
+  readonly defaultEngine?: EngineKind;
 };
+
 
 export type RunEngagementArcParams = {
   readonly input: EngagementWorkflowInput;
@@ -97,11 +113,16 @@ export async function runEngagementArc(
     join: params.deps.join,
     resolveDefinition: params.deps.resolveDefinition,
     runId: params.runId,
+    defaultEngine: params.deps.defaultEngine,
   };
 
   let outcome = await params.step.run({ name: leafStepName }, async () => {
+    if (params.deps.executeLeaf !== undefined) {
+      return params.deps.executeLeaf(params.input, params.runId);
+    }
     return runEngagementLeaf(params.input, leafDeps);
   });
+
 
   let parkLoop = 0;
   while (outcome.kind === "parked") {
@@ -160,6 +181,10 @@ export async function runEngagementArc(
       sessionRef: outcome.sessionRef,
       task: wake.payloadText,
       engageMode: wake.mode ?? "continue",
+      // S2e §5: park → wake continue MUST pin the run's engine. Copy the
+      // serialized engine override; without it the wake leaf would fall back
+      // to definition/default and could resume a Pi ref on the wrong engine.
+      engine: params.input.engine,
       // Clear park unless wake payload explicitly re-parks (tests / control plane).
       parkIntent: wake.parkIntent === true ? true : undefined,
       parkReason: wake.parkIntent === true ? wake.parkReason : undefined,
@@ -167,9 +192,16 @@ export async function runEngagementArc(
 
     outcome = await params.step.run(
       { name: `${continueStepBase}-${parkLoop}` },
-      async () => runEngagementLeaf(continueInput, leafDeps),
+      async () => {
+        if (params.deps.executeLeaf !== undefined) {
+          return params.deps.executeLeaf(continueInput, params.runId);
+        }
+        return runEngagementLeaf(continueInput, leafDeps);
+      },
     );
+
   }
 
   return outcome;
 }
+

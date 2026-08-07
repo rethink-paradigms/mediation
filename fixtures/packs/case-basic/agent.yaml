@@ -1,0 +1,6 @@
+# Minimal fixture agent.yaml for spawn-leaf tests
+name: case-basic
+model: test/fixture
+extensions:
+  - foo
+  - bar

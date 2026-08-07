@@ -12,7 +12,8 @@ export type MediationErrorCode =
   | "PARK_CONTINUE_FAILED"
   | "RUNTIME_FAILED"
   | "JOIN_NOT_FOUND"
-  | "POLICY_VIOLATION";
+  | "POLICY_VIOLATION"
+  | "ENGINE_UNKNOWN";
 
 export class MediationError extends Error {
   readonly code: MediationErrorCode;

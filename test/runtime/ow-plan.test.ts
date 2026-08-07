@@ -283,3 +283,227 @@ describe("OW worker + plan leaf (S10, mock mind)", () => {
     );
   });
 });
+
+describe("runPlanWorkflow DAG body (pure, no OW)", () => {
+  it("2-node no edges → Wave 0 parallel, both settled", async () => {
+    const j = new MemoryJoinStore();
+    const f = makeMockFactory("mock-session-dag-parallel");
+
+    const plan: PlanSpec = {
+      id: "plan-dag-parallel",
+      nodes: [
+        { id: "a", agent: { name: "agent-a", rootDir: FIXTURE_ROOT }, task: "step a" },
+        { id: "b", agent: { name: "agent-b", rootDir: FIXTURE_ROOT }, task: "step b" },
+      ],
+    };
+
+    const out = await runPlanWorkflow(plan, {
+      factory: f, join: j, resolveDefinition, runId: "dag-parallel-run",
+    });
+
+    assert.equal(out.kind, "completed");
+    assert.equal(out.nodes.length, 2);
+    assert.equal(out.nodes[0]?.outcome.kind, "settled");
+    assert.equal(out.nodes[1]?.outcome.kind, "settled");
+
+    const ja = await j.getByRunId(asRunId("dag-parallel-run:a"));
+    const jb = await j.getByRunId(asRunId("dag-parallel-run:b"));
+    assert.ok(ja);
+    assert.ok(jb);
+  });
+
+  it("3-node chain A→B→C → waves sequenced, all settled", async () => {
+    const j = new MemoryJoinStore();
+    const f = makeMockFactory("mock-session-dag-chain");
+
+    const plan: PlanSpec = {
+      id: "plan-dag-chain",
+      nodes: [
+        { id: "a", agent: { name: "agent-a", rootDir: FIXTURE_ROOT }, task: "first" },
+        { id: "b", agent: { name: "agent-b", rootDir: FIXTURE_ROOT }, task: "second" },
+        { id: "c", agent: { name: "agent-c", rootDir: FIXTURE_ROOT }, task: "third" },
+      ],
+      edges: [{ from: "a", to: "b" }, { from: "b", to: "c" }],
+    };
+
+    const out = await runPlanWorkflow(plan, {
+      factory: f, join: j, resolveDefinition, runId: "dag-chain-run",
+    });
+
+    assert.equal(out.kind, "completed");
+    assert.equal(out.nodes.length, 3);
+    for (const n of out.nodes) {
+      assert.equal(n.outcome.kind, "settled");
+    }
+  });
+
+  it("diamond DAG A→C, B→C → Wave 0 parallel, Wave 1 solo", async () => {
+    const j = new MemoryJoinStore();
+    const f = makeMockFactory("mock-session-dag-diamond");
+
+    const plan: PlanSpec = {
+      id: "plan-dag-diamond",
+      nodes: [
+        { id: "a", agent: { name: "agent-a", rootDir: FIXTURE_ROOT }, task: "left" },
+        { id: "b", agent: { name: "agent-b", rootDir: FIXTURE_ROOT }, task: "right" },
+        { id: "c", agent: { name: "agent-c", rootDir: FIXTURE_ROOT }, task: "join" },
+      ],
+      edges: [{ from: "a", to: "c" }, { from: "b", to: "c" }],
+    };
+
+    const out = await runPlanWorkflow(plan, {
+      factory: f, join: j, resolveDefinition, runId: "dag-diamond-run",
+    });
+
+    assert.equal(out.kind, "completed");
+    assert.equal(out.nodes.length, 3);
+    for (const n of out.nodes) {
+      assert.equal(n.outcome.kind, "settled", `node ${n.nodeId} should settle`);
+    }
+  });
+
+  it("mixed: one fails, one settles in wave → plan failed, surviving node ok", async () => {
+    const j = new MemoryJoinStore();
+    const f = makeMockFactory("mock-session-dag-mixed");
+
+    const plan: PlanSpec = {
+      id: "plan-dag-mixed",
+      nodes: [
+        { id: "good", agent: { name: "agent-ok", rootDir: FIXTURE_ROOT }, task: "ok" },
+        { id: "bad", agent: { name: "bad-packs-s10", rootDir: FIXTURE_ROOT }, task: "bad" },
+      ],
+    };
+
+    const out = await runPlanWorkflow(plan, {
+      factory: f, join: j, resolveDefinition, runId: "dag-mixed-run",
+    });
+
+    assert.equal(out.kind, "failed");
+    const goodNode = out.nodes.find((n) => n.nodeId === "good");
+    const badNode = out.nodes.find((n) => n.nodeId === "bad");
+    assert.equal(goodNode?.outcome.kind, "settled");
+    assert.equal(badNode?.outcome.kind, "failed");
+    if (badNode?.outcome.kind === "failed") {
+      assert.equal(badNode.outcome.error.code, "CAPABILITY_RESOLVE_FAILED");
+    }
+  });
+
+  it("empty plan → vacuous completed", async () => {
+    const f = makeMockFactory("mock-session-dag-empty");
+    const out = await runPlanWorkflow(
+      { id: "empty-plan", nodes: [] },
+      { factory: f, join: new MemoryJoinStore(), resolveDefinition, runId: "empty-run" },
+    );
+    assert.equal(out.kind, "completed");
+    assert.equal(out.nodes.length, 0);
+  });
+});
+
+describe("OW worker + plan DAG (mock mind)", () => {
+  const dagBackend = BackendSqlite.connect(":memory:");
+  const dagOw = new OpenWorkflow({ backend: dagBackend });
+  const dagJoin = new MemoryJoinStore();
+  const dagFactory = makeMockFactory("mock-session-dag-ow");
+
+  const { planSpec: dagPlanSpec } = registerPlanWorkflow(dagOw, {
+    factory: dagFactory,
+    join: dagJoin,
+    resolveDefinition,
+  });
+
+  const dagRuntime = new OpenWorkflowRuntime({
+    ow: dagOw,
+    backend: { getWorkflowRun: (params) => dagBackend.getWorkflowRun(params) },
+    planSpec: dagPlanSpec,
+    pollIntervalMs: 15,
+  });
+
+  const dagWorker = dagOw.newWorker({ concurrency: 2 });
+  let dagWorkerStarted = false;
+
+  after(async () => {
+    if (dagWorkerStarted) {
+      await dagWorker.stop();
+    }
+    await dagBackend.stop();
+  });
+
+  it("2-node parallel → worker → both settled concurrently", async () => {
+    await dagWorker.start();
+    dagWorkerStarted = true;
+
+    const plan: PlanSpec = {
+      id: "plan-dag-ow-parallel",
+      nodes: [
+        { id: "n1", agent: { name: "case-basic-s10-a", rootDir: FIXTURE_ROOT }, task: "worker p1" },
+        { id: "n2", agent: { name: "case-basic-s10-b", rootDir: FIXTURE_ROOT }, task: "worker p2" },
+      ],
+    };
+
+    const handle = await dagRuntime.runPlan(plan);
+    const status = await dagRuntime.wait(handle.runId, { timeoutMs: 15_000 });
+    assert.equal(status.state, "completed");
+
+    const result = status.result as PlanWorkflowOutput;
+    assert.equal(result.kind, "completed");
+    assert.equal(result.nodes.length, 2);
+    assert.equal(result.nodes[0]?.outcome.kind, "settled");
+    assert.equal(result.nodes[1]?.outcome.kind, "settled");
+
+    const j1 = await dagJoin.getByRunId(asRunId(`${handle.runId}:n1`));
+    const j2 = await dagJoin.getByRunId(asRunId(`${handle.runId}:n2`));
+    assert.ok(j1);
+    assert.ok(j2);
+  });
+
+  it("diamond A→C, B→C → waves sequenced, all settled", async () => {
+    if (!dagWorkerStarted) { await dagWorker.start(); dagWorkerStarted = true; }
+
+    const plan: PlanSpec = {
+      id: "plan-dag-ow-diamond",
+      nodes: [
+        { id: "a", agent: { name: "case-basic-s10-a", rootDir: FIXTURE_ROOT }, task: "left" },
+        { id: "b", agent: { name: "case-basic-s10-b", rootDir: FIXTURE_ROOT }, task: "right" },
+        { id: "c", agent: { name: "case-basic-s10-b", rootDir: FIXTURE_ROOT }, task: "join" },
+      ],
+      edges: [{ from: "a", to: "c" }, { from: "b", to: "c" }],
+    };
+
+    const handle = await dagRuntime.runPlan(plan);
+    const status = await dagRuntime.wait(handle.runId, { timeoutMs: 15_000 });
+    assert.equal(status.state, "completed");
+
+    const result = status.result as PlanWorkflowOutput;
+    assert.equal(result.kind, "completed");
+    assert.equal(result.nodes.length, 3);
+    for (const n of result.nodes) {
+      assert.equal(n.outcome.kind, "settled", `node ${n.nodeId}`);
+    }
+  });
+
+  it("chain A→B→C → sequential waves, all settled", async () => {
+    if (!dagWorkerStarted) { await dagWorker.start(); dagWorkerStarted = true; }
+
+    const plan: PlanSpec = {
+      id: "plan-dag-ow-chain",
+      nodes: [
+        { id: "x", agent: { name: "case-basic-s10-a", rootDir: FIXTURE_ROOT }, task: "first" },
+        { id: "y", agent: { name: "case-basic-s10-b", rootDir: FIXTURE_ROOT }, task: "second" },
+        { id: "z", agent: { name: "case-basic-s10-a", rootDir: FIXTURE_ROOT }, task: "third" },
+      ],
+      edges: [{ from: "x", to: "y" }, { from: "y", to: "z" }],
+    };
+
+    const handle = await dagRuntime.runPlan(plan);
+    const status = await dagRuntime.wait(handle.runId, { timeoutMs: 15_000 });
+    assert.equal(status.state, "completed");
+
+    const result = status.result as PlanWorkflowOutput;
+    assert.equal(result.kind, "completed");
+    assert.equal(result.nodes.length, 3);
+    for (const n of result.nodes) {
+      assert.equal(n.outcome.kind, "settled", `node ${n.nodeId}`);
+    }
+  });
+});
+

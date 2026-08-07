@@ -3,6 +3,7 @@
  * Domain never sees AgentSession / vendor types.
  */
 
+import type { EngineKind } from "../domain/engine.js";
 import type {
   AgentDefinition,
   EngineSettingsPolicy,
@@ -48,4 +49,18 @@ export interface EngineSessionHandle {
 
 export interface EnginePort {
   openSession(req: OpenSessionRequest): Promise<EngineSessionHandle>;
+}
+
+/**
+ * Maps EngineKind → EnginePort (S2e runtime engine selection).
+ * App layer depends on this interface, never on adapter classes.
+ *
+ * `get` is async so the registry can resolve adapters lazily (e.g. the
+ * prime adapter is loaded via dynamic import on first use). Unknown or
+ * unavailable kinds fail closed with MediationError("ENGINE_UNKNOWN", …).
+ */
+export interface EngineRegistry {
+  get(kind: EngineKind): Promise<EnginePort>;
+  has(kind: EngineKind): boolean;
+  readonly kinds: readonly EngineKind[];
 }

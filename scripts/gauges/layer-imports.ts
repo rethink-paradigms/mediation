@@ -2,7 +2,7 @@
  * Gauge: layer_import_violations
  *
  * Scan src/domain, src/ports, and src/app (if present) for imports of
- * pi-coding-agent, @earendil-works/*, or openworkflow.
+ * pi-coding-agent, prime-agent, @earendil-works/*, or openworkflow.
  * Observational: prints count (expected 0).
  */
 
@@ -14,12 +14,15 @@ const SRC = path.join(PKG_ROOT, "src");
 
 const FORBIDDEN = [
   /from\s+["']pi-coding-agent(?:\/[^"']*)?["']/u,
+  /from\s+["']prime-agent(?:\/[^"']*)?["']/u,
   /from\s+["']@earendil-works\/[^"']+["']/u,
   /from\s+["']openworkflow(?:\/[^"']*)?["']/u,
   /require\(\s*["']pi-coding-agent(?:\/[^"']*)?["']\s*\)/u,
+  /require\(\s*["']prime-agent(?:\/[^"']*)?["']\s*\)/u,
   /require\(\s*["']@earendil-works\/[^"']+["']\s*\)/u,
   /require\(\s*["']openworkflow(?:\/[^"']*)?["']\s*\)/u,
   /import\(\s*["']pi-coding-agent(?:\/[^"']*)?["']\s*\)/u,
+  /import\(\s*["']prime-agent(?:\/[^"']*)?["']\s*\)/u,
   /import\(\s*["']@earendil-works\/[^"']+["']\s*\)/u,
   /import\(\s*["']openworkflow(?:\/[^"']*)?["']\s*\)/u,
 ];
