@@ -21,7 +21,7 @@ whole vision, but real and usable:
 | Catalog adapter | `src/adapters/knowledge/catalog.ts` | Real initial catalog from Pi/Prime/Mock capability surfaces (25 nodes / 36 edges on pi) + `buildPiCatalog` / `buildPrimeCatalog` / `buildMockCatalog` / `buildCatalog(engine)` |
 | Service adapter | `src/adapters/knowledge/service.ts` | `KnowledgeService` / `createKnowledgeService` — KnowledgePort over the operations |
 | Public exports | `src/index.ts` | Appended (file was not rewritten) |
-| Scenario suite | `test/knowledge/scenarios.test.ts` | 31 intent-first scenarios (written BEFORE the implementation — see §7) |
+| Scenario suite | `test/knowledge/scenarios.test.ts` | 45 intent-first scenarios (written BEFORE the implementation — see §7) |
 | Fidelity + integrity | `test/knowledge/fidelity.test.ts` | Catalog must match REAL Pi/Prime options (21 tests) |
 | Port smoke | `test/knowledge/port.test.ts` | KnowledgePort surface (3 tests) |
 
@@ -86,12 +86,12 @@ The parent prompt suggested a conflicts-with pair "e.g. thinking:off vs reasonin
 | Suite | File | Tests | Result |
 |---|---|---|---|
 | resolve scenarios (intent → ranked matches) | scenarios | 15 | pass |
-| validate scenarios (domain/conflict/dependency) | scenarios | 12 | pass |
+| validate scenarios (domain/conflict/dependency) | scenarios | 14 | pass |
 | compose scenarios (emergent + side effects) | scenarios | 5 | pass |
 | explain scenarios (why-choices text) | scenarios | 3 | pass |
-| list/describe scenarios (traversal) | scenarios | 5 | pass |
+| list/describe scenarios (traversal) | scenarios | 6 | pass |
 | medium independence (D5 — no paths in identities) | scenarios | 2 | pass |
-| fidelity (real Pi/Prime options) | fidelity | 8 | pass |
+| fidelity (real Pi/Prime options) | fidelity | 7 | pass |
 | graph integrity (ids/edges/scoping) | fidelity | 7 | pass |
 | port smoke (KnowledgePort) | port | 3 | pass |
 | **knowledge total** | | **62** | **62 pass / 0 fail** |
