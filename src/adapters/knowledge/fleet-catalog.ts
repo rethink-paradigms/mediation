@@ -371,8 +371,15 @@ export const FLEET_MANIFEST: readonly FleetAgentManifestEntry[] = [
 export function resolveFleetAgentsRoot(
   opts: { readonly agentsRoot?: string } = {},
 ): string | undefined {
+  // Explicit option wins absolutely: a provided-but-missing root means "no
+  // fleet" (engine-only), never a silent fallback to env/convention — an
+  // explicit intent must not be overridden by an ambient root.
+  if (opts.agentsRoot !== undefined) {
+    return opts.agentsRoot.length > 0 && fs.existsSync(opts.agentsRoot)
+      ? path.resolve(opts.agentsRoot)
+      : undefined;
+  }
   const candidates: string[] = [
-    ...(opts.agentsRoot !== undefined ? [opts.agentsRoot] : []),
     ...(process.env.COMPANY_AGENTS_DIR !== undefined &&
     process.env.COMPANY_AGENTS_DIR.length > 0
       ? [process.env.COMPANY_AGENTS_DIR]
