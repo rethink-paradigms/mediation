@@ -187,15 +187,18 @@ export class EngineSessionHandleBase<TEvent> implements EngineSessionHandle {
     this.markBusy();
     const bridge = hasBridgeText(opts?.bridgeText) ? opts!.bridgeText : undefined;
 
-    // D1 ParkBridge (issue #1): after a full settled park the transcript ends
-    // with role assistant and Pi's loop-resume agent.continue() is illegal
+    // D1 ParkBridge (issue #1): after a settled park the transcript ends with
+    // an assistant message and Pi's loop-resume agent.continue() is illegal
     // ("Cannot continue from message role: assistant"). When a bridge is
-    // present AND the tail is assistant, append the bridge as a user message
-    // and run — the legal engine path for "human said something later"
-    // (Pi prompt = append user message + full loop). Unknown/empty transcripts
-    // keep the bare engine verb so inMemory fail-closed semantics hold
-    // ("No messages to continue from").
-    if (bridge !== undefined && lastMessageRoleOf(this.session) === "assistant") {
+    // present AND the transcript is known (non-empty), append the bridge as a
+    // user message and run — the legal engine path for "human said something
+    // later" (Pi prompt = append user message + full loop). This holds for
+    // ANY known tail (assistant, user, or toolResult): D2 says the bridge is
+    // appended to the parked context unconditionally, so a bare loop-resume
+    // must never silently drop the wake payload. Unknown/empty transcripts
+    // (surfaces hiding messages / inMemory re-open) keep the bare engine verb
+    // so fail-closed semantics hold ("No messages to continue from").
+    if (bridge !== undefined && lastMessageRoleOf(this.session) !== undefined) {
       this.emit({
         type: "raw",
         name: "continue",

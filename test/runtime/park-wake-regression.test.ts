@@ -276,6 +276,34 @@ describe("park→wake default continue on role-guard Pi session (regression)", (
     await handle.dispose();
   });
 
+  it("REGRESSION: continue with bridge on user/toolResult tail routes through prompt (payload never dropped)", async () => {
+    // D2: the bridge is appended to the parked context unconditionally. A
+    // bare loop-resume on a user/toolResult tail would be Pi-legal but would
+    // silently DROP the wake payload. Assert the bridge reaches the model via
+    // prompt for a non-assistant known tail too.
+    const session = new RoleGuardPiSession({
+      sessionId: "rg-bridge-usertail",
+      sessionFile: "rg-bridge-usertail",
+      messages: [
+        { role: "user", text: "park me" },
+        { role: "toolResult", text: "tool finished" },
+      ],
+    });
+    const handle = new PiEngineSessionHandle({
+      session,
+      sessionRef: asSessionRef("rg-bridge-usertail"),
+    });
+    await handle.continue({
+      bridgeText: "[park bridge] waiting on review / reviewer approved, go",
+    });
+    // Pi's continue() is legal after toolResult — but the bridge must still be
+    // delivered: route through prompt, never bare continue.
+    assert.equal(session.continueCalls, 0);
+    assert.equal(session.promptCalls.length, 1);
+    assert.match(session.promptCalls[0]!, /reviewer approved, go/u);
+    await handle.dispose();
+  });
+
   it("arc: park → wake default continue → Settled same sessionRef + bridge in prompt", async () => {
     const { sessions, factory, join } = makeRoleGuardWiring();
     const runId = "rg-arc-1";
