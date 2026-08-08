@@ -472,6 +472,18 @@ export {
   DEFAULT_CATALOG,
 } from "./adapters/knowledge/catalog.ts";
 
+// --- Fleet catalog (phase 2 — catalog accuracy: agent.<name> nodes) ---
+export {
+  FLEET_MANIFEST,
+  buildFleetCatalog,
+  buildFleetNode,
+  buildDefaultKnowledgeCatalog,
+  mergeCatalogs,
+  resolveFleetAgentsRoot,
+  humanizeAgentName,
+} from "./adapters/knowledge/fleet-catalog.ts";
+export type { FleetAgentManifestEntry } from "./adapters/knowledge/fleet-catalog.ts";
+
 // --- KnowledgeService (KnowledgePort implementation) ---
 export {
   KnowledgeService,

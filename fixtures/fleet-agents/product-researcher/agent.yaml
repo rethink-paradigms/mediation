@@ -1,0 +1,10 @@
+name: product-researcher
+model: deepseek/deepseek-v4-flash
+thinking: low
+max_concurrency: 3
+
+tools:
+  builtin: [read, bash, write, ls, find, grep]
+  custom: [web_search, web_fetch]
+
+prompt: prompt.md

@@ -1,0 +1,14 @@
+name: coding-agent
+model: deepseek/deepseek-v4-pro
+thinking: low
+max_concurrency: 2
+
+tools:
+  builtin: [read, bash, write, edit, ls, find, grep]
+
+extensions:
+  - coding-repo-map
+  - coding-edit
+  - context-memory
+
+prompt: prompt.md

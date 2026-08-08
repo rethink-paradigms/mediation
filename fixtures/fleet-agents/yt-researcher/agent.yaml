@@ -1,0 +1,13 @@
+name: yt-researcher
+model: deepseek/deepseek-v4-flash
+thinking: off
+max_concurrency: 3
+
+tools:
+  builtin: [read, bash, write, ls, find]
+
+extensions:
+  - subtext
+  - yt-tools
+
+prompt: prompt.md

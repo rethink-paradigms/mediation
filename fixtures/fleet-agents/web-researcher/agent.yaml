@@ -1,0 +1,14 @@
+name: web-researcher
+model: deepseek/deepseek-v4-flash
+thinking: off
+max_concurrency: 3
+task_timeout_minutes: 15
+
+tools:
+  builtin: [read, bash, write, edit, ls, find, grep]
+  custom: [web_search, web_fetch]
+
+extensions:
+  - context-memory
+
+prompt: prompt.md

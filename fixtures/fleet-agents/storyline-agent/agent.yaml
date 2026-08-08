@@ -1,0 +1,14 @@
+name: storyline-agent
+model: deepseek/deepseek-v4-pro
+thinking: high
+max_concurrency: 1
+task_timeout_minutes: 30
+
+tools:
+  builtin: [read, bash, write, ls, find]
+
+extensions:
+  - tools/internal/intent-corpus
+  - openworkflow-dispatch
+
+prompt: prompt.md

@@ -20,6 +20,7 @@ import { createEngineRegistry } from "./engine-registry.ts";
 import type { EngineRegistry } from "../ports/engine.ts";
 import { Mediation, type MediationDeps } from "../app/mediation.ts";
 import { createKnowledgeService } from "./knowledge/service.ts";
+import { buildDefaultKnowledgeCatalog } from "./knowledge/fleet-catalog.ts";
 import type { KnowledgePort } from "../ports/knowledge.ts";
 import type { CapabilityResolver } from "../ports/capability-resolver.ts";
 import type {
@@ -132,9 +133,18 @@ export type CreateLocalMediationOptions = {
   readonly registryStore?: RegistryCapabilityStore;
   /**
    * Explicit KnowledgePort for the façade's DOMAIN-M knowledge face (phase 2).
-   * When omitted, compose injects KnowledgeService over DEFAULT_CATALOG.
+   * When omitted, compose injects KnowledgeService over the DEFAULT knowledge
+   * catalog (engine capabilities + fleet agent catalog).
    */
   readonly knowledge?: KnowledgePort;
+  /**
+   * Fleet agents root (directory of agent.yaml dirs) for the default
+   * knowledge catalog (phase 2 — catalog accuracy). When omitted, the fleet
+   * root resolves as: COMPANY_AGENTS_DIR env > company convention
+   * (<company>/agents from this package's location). When no root exists the
+   * default knowledge catalog stays engine-only (pure capability data).
+   */
+  readonly fleetAgentsRoot?: string;
 };
 
 /**
@@ -312,10 +322,14 @@ export function createLocalMediation(
 ): LocalMediationComposition {
   const { loader, factory, join, capabilityStores, registry } = wireMind(opts);
 
-  // DOMAIN-M (phase 2): the façade's knowledge face is always wired — the
-  // KnowledgeService over DEFAULT_CATALOG unless an explicit port is given.
-  // (Catalog accuracy validation is a separate later pass.)
-  const knowledge = opts.knowledge ?? createKnowledgeService();
+  // DOMAIN-M (phase 2 + catalog accuracy): the façade's knowledge face is
+  // always wired — KnowledgeService over the DEFAULT knowledge catalog
+  // (engine capabilities + fleet agents) unless an explicit port is given.
+  const knowledge =
+    opts.knowledge ??
+    createKnowledgeService(
+      buildDefaultKnowledgeCatalog({ agentsRoot: opts.fleetAgentsRoot }),
+    );
 
   const mediation = new Mediation({
     loader,
@@ -450,8 +464,13 @@ export function createHostedMediation(
   });
 
 
-  // DOMAIN-M (phase 2): same knowledge face wiring as local composition.
-  const knowledge = opts.knowledge ?? createKnowledgeService();
+  // DOMAIN-M (phase 2 + catalog accuracy): same knowledge face wiring as
+  // local composition (engine catalog + fleet agent catalog).
+  const knowledge =
+    opts.knowledge ??
+    createKnowledgeService(
+      buildDefaultKnowledgeCatalog({ agentsRoot: opts.fleetAgentsRoot }),
+    );
 
   const mediation = new Mediation({
     loader,

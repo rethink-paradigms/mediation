@@ -1,0 +1,15 @@
+name: brain-explorer
+model: deepseek/deepseek-v4-flash
+thinking: off
+max_concurrency: 3
+
+tools:
+  builtin: [read, bash, write, edit, ls, find, grep]
+  custom: [web_search, web_fetch]
+
+extensions:
+  - brain
+  - context-memory
+  - session_reader
+
+prompt: prompt.md

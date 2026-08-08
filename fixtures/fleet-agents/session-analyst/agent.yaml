@@ -1,0 +1,15 @@
+name: session-analyst
+model: deepseek/deepseek-v4-pro
+thinking: high
+max_concurrency: 1
+
+tools:
+  builtin: [read, bash, ls, find]
+
+extensions:
+  - session-index
+
+skills:
+  - ./skill/
+
+prompt: prompt.md
