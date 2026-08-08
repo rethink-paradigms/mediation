@@ -50,10 +50,10 @@ export function createGraph(
     }
     seen.add(identity);
     if (n.intentSignature.length === 0) {
-      errors.push(`node "${id}" has no intent signatures`);
+      errors.push(`node "${identity}" has no intent signatures`);
     }
     if (n.domain.kind === "enum" && n.domain.values.length === 0) {
-      errors.push(`node "${id}" has an empty enum domain`);
+      errors.push(`node "${identity}" has an empty enum domain`);
     }
   }
   const edgeKeys = new Set<string>();

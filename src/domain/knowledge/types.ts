@@ -12,6 +12,7 @@
  */
 
 import type { EngineKind } from "../engine.ts";
+import type { AgentRef } from "../definition.ts";
 
 // ---------------------------------------------------------------------------
 // Identity
@@ -144,6 +145,14 @@ export type CapabilityNode = {
    * the catalog, they do not import engine code.
    */
   readonly engineScope?: readonly EngineKind[];
+  /**
+   * Optional bridge to the pack/definition world (phase 2 seam): when this
+   * capability node corresponds to a concrete agent (e.g. a "web researcher"
+   * agent), this is the AgentRef the DefinitionLoader can resolve — so a
+   * surface can go resolveIntent → agent → engage. Pure-domain (D5): a ref,
+   * never a path-based identity. Catalog authors opt in; absent == no mapping.
+   */
+  readonly agentRef?: AgentRef;
   /** Optional derived incident edges (see type comment above). */
   readonly incidentEdges?: readonly IncidentEdge[];
 };

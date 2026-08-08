@@ -19,6 +19,8 @@ import type { EngineKind } from "../domain/engine.ts";
 import { createEngineRegistry } from "./engine-registry.ts";
 import type { EngineRegistry } from "../ports/engine.ts";
 import { Mediation, type MediationDeps } from "../app/mediation.ts";
+import { createKnowledgeService } from "./knowledge/service.ts";
+import type { KnowledgePort } from "../ports/knowledge.ts";
 import type { CapabilityResolver } from "../ports/capability-resolver.ts";
 import type {
   CapabilityPublisher,
@@ -128,6 +130,11 @@ export type CreateLocalMediationOptions = {
    * when capabilityResolver / capabilityStore / capabilityStores are set.
    */
   readonly registryStore?: RegistryCapabilityStore;
+  /**
+   * Explicit KnowledgePort for the façade's DOMAIN-M knowledge face (phase 2).
+   * When omitted, compose injects KnowledgeService over DEFAULT_CATALOG.
+   */
+  readonly knowledge?: KnowledgePort;
 };
 
 /**
@@ -305,11 +312,17 @@ export function createLocalMediation(
 ): LocalMediationComposition {
   const { loader, factory, join, capabilityStores, registry } = wireMind(opts);
 
+  // DOMAIN-M (phase 2): the façade's knowledge face is always wired — the
+  // KnowledgeService over DEFAULT_CATALOG unless an explicit port is given.
+  // (Catalog accuracy validation is a separate later pass.)
+  const knowledge = opts.knowledge ?? createKnowledgeService();
+
   const mediation = new Mediation({
     loader,
     factory,
     join,
     runtime: opts.runtime,
+    knowledge,
   });
 
   return { mediation, join, capabilityStores, registry };
@@ -437,11 +450,15 @@ export function createHostedMediation(
   });
 
 
+  // DOMAIN-M (phase 2): same knowledge face wiring as local composition.
+  const knowledge = opts.knowledge ?? createKnowledgeService();
+
   const mediation = new Mediation({
     loader,
     factory,
     join: host.join,
     runtime: host.runtime,
+    knowledge,
   });
 
   return {

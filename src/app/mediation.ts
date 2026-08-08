@@ -7,6 +7,20 @@
 
 import type { AgentDefinition, AgentRef } from "../domain/definition.ts";
 import type { EngineKind } from "../domain/engine.ts";
+import type {
+  CapabilityConfig,
+  ComposeResult,
+  ExplainResult,
+  ListFilter,
+  NodeSummary,
+  ResolveOptions,
+  ResolveResult,
+  ValidationResult,
+} from "../domain/knowledge/types.ts";
+import type {
+  KnowledgePort,
+  NodeDescription,
+} from "../ports/knowledge.ts";
 import {
   asRunId,
   type EngagementRecord,
@@ -58,6 +72,14 @@ export type MediationDeps = {
    * MediationEvent (recipe G).
    */
   readonly notify?: NotifyPort;
+  /**
+   * Optional KnowledgePort (DOMAIN-M capability graph). When provided, the
+   * façade exposes it as `Mediation.knowledge` — the capability-graph face
+   * (list/describe/resolve/validate/compose/explain) for surfaces. Composition
+   * roots (createLocalMediation / createHostedMediation) inject
+   * KnowledgeService (DEFAULT_CATALOG) by default (phase 2 wiring).
+   */
+  readonly knowledge?: KnowledgePort;
 };
 
 export type EngageLocalInput = {
@@ -108,6 +130,31 @@ export type ReenterResult = EngageLocalResult & {
 };
 
 /**
+ * DOMAIN-M knowledge face — the capability-graph ops a surface consumes off
+ * the Mediation façade (phase 2: Domain M wired into the product). Stable
+ * public shape for the Pi-extension's mediation_agents backend:
+ *
+ *   listCapabilities / describeCapability / resolveIntent / validate /
+ *   compose / explain
+ *
+ * `agentFor` is the optional catalog→agent bridge: capability identity →
+ * AgentRef (resolveIntent → agent → engage). Absent when the wired port
+ * implements no mapping (DEFAULT_CATALOG is pure capability data).
+ */
+export type MediationKnowledgeFace = {
+  readonly listCapabilities: (filter?: ListFilter) => Promise<NodeSummary[]>;
+  readonly describeCapability: (identity: string) => Promise<NodeDescription>;
+  readonly resolveIntent: (
+    intent: string,
+    options?: ResolveOptions,
+  ) => Promise<ResolveResult>;
+  readonly validate: (config: CapabilityConfig) => Promise<ValidationResult>;
+  readonly compose: (ids: readonly string[]) => Promise<ComposeResult>;
+  readonly explain: (config: CapabilityConfig) => Promise<ExplainResult>;
+  readonly agentFor?: (identity: string) => Promise<AgentRef | undefined>;
+};
+
+/**
  * Sole product façade for load / materialize / local engage / dispatch.
  */
 export class Mediation {
@@ -116,6 +163,11 @@ export class Mediation {
   private readonly runtime: RuntimePort | undefined;
   private readonly join: JoinStore | undefined;
   private readonly notify: NotifyPort | undefined;
+  /**
+   * DOMAIN-M capability-graph face (phase 2). Undefined when no KnowledgePort
+   * was wired (direct `new Mediation`); composition always injects one.
+   */
+  readonly knowledge: MediationKnowledgeFace | undefined;
   /** MediationEvent observers (recipe G / UIs). Error-isolated fan-out. */
   private readonly observers = new Set<(event: MediationEvent) => void>();
   /**
@@ -131,6 +183,8 @@ export class Mediation {
     this.runtime = deps.runtime;
     this.join = deps.join;
     this.notify = deps.notify;
+    this.knowledge =
+      deps.knowledge === undefined ? undefined : knowledgeFaceFor(deps.knowledge);
   }
 
   /** Load inert AgentDefinition from AgentRef. */
@@ -521,5 +575,28 @@ function notifyPayloadFor(outcome: RunOutcome): unknown {
     case "failed":
       return { error: outcome.error };
   }
+}
+
+/**
+ * Build the DOMAIN-M knowledge face over a wired KnowledgePort (phase 2).
+ * Six stable ops mirror the port's list/describe/resolve/validate/compose/
+ * explain; the optional agentFor bridge is surfaced only when the port
+ * implements it (no fake "no mapping" op on the public face).
+ */
+function knowledgeFaceFor(port: KnowledgePort): MediationKnowledgeFace {
+  const agentFor = port.agentFor;
+  const face: MediationKnowledgeFace = {
+    listCapabilities: (filter) => port.list(filter),
+    describeCapability: (identity) => port.describe(identity),
+    resolveIntent: (intent, options) => port.resolve(intent, options),
+    validate: (config) => port.validate(config),
+    compose: (ids) => port.compose(ids),
+    explain: (config) => port.explain(config),
+  };
+  if (agentFor !== undefined) {
+    // Bind to the port: the method reference alone would lose `this`.
+    return { ...face, agentFor: agentFor.bind(port) };
+  }
+  return face;
 }
 
