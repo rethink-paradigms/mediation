@@ -23,9 +23,11 @@ import path from "node:path";
 import { createLocalMediation } from "../adapters/compose.ts";
 import { createRuntimeClient } from "../adapters/openworkflow/host.ts";
 import { createMediationSurface } from "../adapters/surface/mediation-surface.ts";
+import { createIpcRuntimeClient, ensureDaemon } from "./ipc-client.ts";
 import { asEngineKind, type EngineKind } from "../domain/engine.ts";
 import { asSessionRef } from "../domain/presence.ts";
 import type { SurfacePort } from "../ports/surface.ts";
+import type { RuntimePort } from "../ports/runtime.ts";
 
 /** Known CLI subcommands (engage + LIFE-S1 runtime control). */
 export type CliCommand =
@@ -63,6 +65,10 @@ export type CliArgs = {
   readonly parkReason?: string;
   /** LIFE-S1: dispatch clientRequestId (--client-request-id). */
   readonly clientRequestId?: string;
+  /** Phase-2 daemon IPC: talk to a running daemon over IPC (--ipc / MEDIATION_IPC). */
+  readonly ipc?: string;
+  /** Phase-2 daemon IPC: auto-spawn the daemon on first connect (--spawn). */
+  readonly spawn?: boolean;
 };
 
 export type RunCliOptions = {
@@ -104,6 +110,8 @@ export function parseArgs(argv: readonly string[]): CliArgs {
   let parkIntent: boolean | undefined;
   let parkReason: string | undefined;
   let clientRequestId: string | undefined;
+  let ipc: string | undefined;
+  let spawn: boolean | undefined;
   let json = true;
 
   for (let i = 1; i < args.length; i++) {
@@ -142,6 +150,11 @@ export function parseArgs(argv: readonly string[]): CliArgs {
     } else if (a === "--client-request-id" && next) {
       clientRequestId = next;
       i++;
+    } else if (a === "--ipc" && next) {
+      ipc = next;
+      i++;
+    } else if (a === "--spawn") {
+      spawn = true;
     } else if (a === "--park-intent") {
       parkIntent = true;
     } else if (a === "--park-reason" && next) {
@@ -171,6 +184,8 @@ export function parseArgs(argv: readonly string[]): CliArgs {
     parkIntent,
     parkReason,
     clientRequestId,
+    ipc,
+    spawn,
   };
 }
 
@@ -201,12 +216,19 @@ Options:
   --park-intent       Wake: force re-park after continue (test/control)
   --park-reason       Human-readable park reason
   --client-request-id Dispatch correlation id
+  --ipc <endpoint>    Talk to a running daemon over IPC (unix:/path.sock or
+                      http://127.0.0.1:port; env: MEDIATION_IPC). Wins over
+                      MEDIATION_DB_PATH sqlite-runtime-client mode.
+  --spawn             Auto-spawn the daemon on first connect (--ipc mode;
+                      env: MEDIATION_IPC_SPAWN=1)
   --no-json           Human-readable outcome (default: JSON on stdout)
 
 Env:
   MEDIATION_CLI_ENGINE=pi|prime|mock  engine override (--engine flag wins)
   MEDIATION_CLI_PI=1                  legacy: use Pi factory composition
                                       (default: mock engine)
+  MEDIATION_IPC=<endpoint>            daemon IPC endpoint (see --ipc)
+  MEDIATION_IPC_SPAWN=1               auto-spawn daemon on first connect
 `;
 }
 
@@ -234,20 +256,47 @@ function composeDefaultSurface(opts: {
 function composeRuntimeSurface(opts: {
   readonly projectRoot: string;
   readonly defaultEngine: EngineKind;
+  /**
+   * Phase-2 daemon IPC: when set, runtime verbs ride the daemon IPC client
+   * (unix:/path.sock or http://127.0.0.1:port). Wins over the
+   * MEDIATION_DB_PATH sqlite-runtime-client mode.
+   */
+  readonly ipcEndpoint?: string;
+  /** Phase-2 daemon IPC: spawn the daemon on first connect when true. */
+  readonly spawnDaemon?: boolean;
 }): { readonly surface: SurfacePort; readonly close?: () => Promise<void> } {
+  const ipcEndpoint = opts.ipcEndpoint;
+  if (ipcEndpoint !== undefined && ipcEndpoint !== "") {
+    const client = createIpcRuntimeClient({ endpoint: ipcEndpoint });
+    const surface = runtimeSurfaceFor(client.runtime);
+    return { surface, close: () => client.stop() };
+  }
   const dbPath = process.env.MEDIATION_DB_PATH;
   if (dbPath === undefined || dbPath === "") {
     return { surface: composeDefaultSurface(opts) };
   }
   const client = createRuntimeClient({ dbPath });
-  const surface: SurfacePort = {
+  const surface = runtimeSurfaceFor(client.runtime);
+  return {
+    surface,
+    close: () => client.stop(),
+  };
+}
+
+/**
+ * Map a RuntimePort onto the SurfacePort runtime-verb face (LIFE-S1 /
+ * phase-2 daemon IPC). Single mapping site shared by the sqlite runtime
+ * client and the IPC client.
+ */
+function runtimeSurfaceFor(runtime: RuntimePort): SurfacePort {
+  return {
     engageLocal() {
       return Promise.reject(
         new Error("mediation CLI: engageLocal is local-only (use the engage subcommand)"),
       );
     },
     dispatch(req) {
-      return client.runtime.dispatch({
+      return runtime.dispatch({
         agent: req.agent,
         task: req.task,
         resume: req.resume,
@@ -258,24 +307,20 @@ function composeRuntimeSurface(opts: {
       });
     },
     getStatus(runId) {
-      return client.runtime.getStatus(runId);
+      return runtime.getStatus(runId);
     },
     wait(runId, wopts) {
-      return client.runtime.wait(runId, wopts);
+      return runtime.wait(runId, wopts);
     },
     cancel(runId) {
-      return client.runtime.cancel(runId);
+      return runtime.cancel(runId);
     },
     sendSignal(runId, name, data) {
-      return client.runtime.sendSignal(runId, name, data);
+      return runtime.sendSignal(runId, name, data);
     },
     wake(runId, data) {
-      return client.runtime.sendSignal(runId, "wake", data);
+      return runtime.sendSignal(runId, "wake", data);
     },
-  };
-  return {
-    surface,
-    close: () => client.stop(),
   };
 }
 
@@ -351,24 +396,52 @@ export async function runCli(
   }
 
   const legacyUsePi = process.env.MEDIATION_CLI_PI === "1";
+  // Phase-2 daemon IPC: endpoint resolution --ipc flag > MEDIATION_IPC env >
+  // MEDIATION_DB_PATH (sqlite runtime client) > local composition.
+  const ipcEndpoint = parsed.ipc ?? (process.env.MEDIATION_IPC || undefined);
+  const spawnDaemon =
+    parsed.spawn === true || process.env.MEDIATION_IPC_SPAWN === "1";
+  const dbPath = process.env.MEDIATION_DB_PATH;
+  const hasDbPath = dbPath !== undefined && dbPath !== "";
+
+  // Auto-spawn lifecycle: only for runtime verbs over IPC with --spawn.
+  if (
+    options.surface === undefined &&
+    parsed.command !== "engage" &&
+    ipcEndpoint !== undefined &&
+    spawnDaemon
+  ) {
+    await ensureDaemon({ endpoint: ipcEndpoint });
+  }
+
+  // engage is always local. dispatch routes through the daemon (IPC or
+  // sqlite runtime client) when one is configured; other runtime verbs use
+  // composeRuntimeSurface (which falls back to the local composition when
+  // neither transport is configured).
+  const useRuntimeSurface =
+    parsed.command !== "engage" &&
+    (parsed.command !== "dispatch" || ipcEndpoint !== undefined || hasDbPath);
+
   const composed =
     options.surface !== undefined
       ? { surface: options.surface }
-      : needsAgentTask
-        ? {
+      : useRuntimeSurface
+        ? composeRuntimeSurface({
+            projectRoot: path.resolve(parsed.projectRoot ?? process.cwd()),
+            // CLI smoke default stays mock (no-keys local runs). The legacy
+            // Pi env switches the composition default to pi; --engine /
+            // MEDIATION_CLI_ENGINE travel as the per-call override (they
+            // beat everything downstream).
+            defaultEngine: legacyUsePi ? "pi" : "mock",
+            ipcEndpoint,
+            spawnDaemon,
+          })
+        : {
             surface: composeDefaultSurface({
               projectRoot: path.resolve(parsed.projectRoot ?? process.cwd()),
-              // CLI smoke default stays mock (no-keys local runs). The legacy
-              // Pi env switches the composition default to pi; --engine /
-              // MEDIATION_CLI_ENGINE travel as the per-call override (they
-              // beat everything downstream).
               defaultEngine: legacyUsePi ? "pi" : "mock",
             }),
-          }
-        : composeRuntimeSurface({
-            projectRoot: path.resolve(parsed.projectRoot ?? process.cwd()),
-            defaultEngine: legacyUsePi ? "pi" : "mock",
-          });
+          };
   const surface = composed.surface;
   try {
     return await dispatchCommand(parsed, surface, engineOverride);

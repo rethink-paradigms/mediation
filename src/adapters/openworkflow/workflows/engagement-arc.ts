@@ -13,7 +13,10 @@
  * Never openSession / resolve packs here — leaf only.
  */
 
+import { asRunId } from "../../../domain/engagement.ts";
 import type { EngineKind } from "../../../domain/engine.ts";
+import { asSessionRef } from "../../../domain/presence.ts";
+import type { NotifyPort, NotifyRecord } from "../../../ports/notify.ts";
 import {
   engagementWakeSignal,
   parseWakeSignalData,
@@ -30,6 +33,71 @@ import {
 
 /** Safety cap on park → wake → continue cycles (fail-closed). */
 export const ENGAGEMENT_ARC_MAX_PARK_LOOPS = 32;
+
+
+// ── Notify from the arc (spawn-mode delivery bridge) ─────────────────────────
+
+/**
+ * Best-effort notify delivery from the arc process. Never throws — a notify
+ * failure must not fail or corrupt the arc.
+ */
+function safeNotify(
+  notify: NotifyPort | undefined,
+  record: NotifyRecord,
+): void {
+  if (!notify) return;
+  void notify.notify(record).catch(() => {
+    // delivery failure isolated from the arc
+  });
+}
+
+/**
+ * Emit a NotifyRecord for a leaf outcome from the ARC process.
+ *
+ * Why: in spawn mode (executeLeaf) the leaf runs in a child process whose
+ * in-process notify cannot reach the daemon's notifier. The arc re-emits the
+ * leaf's outcome record inside the daemon process — the notify→interrupt
+ * server→client push path (D3 P4 / DAEMON-IPC-DESIGN §5).
+ *
+ * Callers gate on `executeLeaf !== undefined` so in-process mode (where the
+ * leaf already notifies) never double-delivers.
+ */
+function arcNotifyForOutcome(
+  outcome: EngagementWorkflowOutput,
+  runId: string,
+  notify: NotifyPort | undefined,
+): void {
+  if (!notify) return;
+  switch (outcome.kind) {
+    case "settled":
+      safeNotify(notify, {
+        runId: asRunId(runId),
+        sessionRef: asSessionRef(outcome.sessionRef),
+        event: "settled",
+        payload: { result: outcome.result },
+      });
+      break;
+    case "parked":
+      safeNotify(notify, {
+        runId: asRunId(runId),
+        sessionRef: asSessionRef(outcome.sessionRef),
+        event: "parked",
+        payload: { reason: outcome.reason, resumeToken: outcome.resumeToken },
+      });
+      break;
+    case "failed":
+      safeNotify(notify, {
+        runId: asRunId(runId),
+        sessionRef:
+          outcome.sessionRef !== undefined
+            ? asSessionRef(outcome.sessionRef)
+            : undefined,
+        event: "failed",
+        payload: { error: outcome.error },
+      });
+      break;
+  }
+}
 
 /**
  * Structural step face used by the arc.
@@ -130,12 +198,18 @@ export async function runEngagementArc(
     return runEngagementLeaf(params.input, leafDeps);
   });
 
+  // Spawn mode: the leaf's notify ran in the child process — re-emit its
+  // outcome record from the daemon process (no double-delivery in-process).
+  if (params.deps.executeLeaf !== undefined) {
+    arcNotifyForOutcome(outcome, params.runId, params.deps.notify);
+  }
+
 
   let parkLoop = 0;
   while (outcome.kind === "parked") {
     parkLoop += 1;
     if (parkLoop > maxParkLoops) {
-      return {
+      const failed: EngagementWorkflowOutput = {
         kind: "failed",
         sessionRef: outcome.sessionRef,
         packSnapshotHash: outcome.packSnapshotHash,
@@ -144,10 +218,12 @@ export async function runEngagementArc(
           code: "PARK_LOOP_EXCEEDED",
         },
       };
+      arcNotifyForOutcome(failed, params.runId, params.deps.notify);
+      return failed;
     }
 
     if (typeof params.step.waitForSignal !== "function") {
-      return {
+      const failed: EngagementWorkflowOutput = {
         kind: "failed",
         sessionRef: outcome.sessionRef,
         packSnapshotHash: outcome.packSnapshotHash,
@@ -157,6 +233,8 @@ export async function runEngagementArc(
           code: "PARK_WAIT_UNAVAILABLE",
         },
       };
+      arcNotifyForOutcome(failed, params.runId, params.deps.notify);
+      return failed;
     }
 
     const wakeSignal = engagementWakeSignal(params.runId);
@@ -167,7 +245,7 @@ export async function runEngagementArc(
     });
 
     if (delivery === null) {
-      return {
+      const failed: EngagementWorkflowOutput = {
         kind: "failed",
         sessionRef: outcome.sessionRef,
         packSnapshotHash: outcome.packSnapshotHash,
@@ -176,6 +254,8 @@ export async function runEngagementArc(
           code: "PARK_WAKE_TIMEOUT",
         },
       };
+      arcNotifyForOutcome(failed, params.runId, params.deps.notify);
+      return failed;
     }
 
     const wake = parseWakeSignalData(delivery.data);
@@ -216,6 +296,10 @@ export async function runEngagementArc(
       },
     );
 
+    // Spawn mode: re-emit the continue-leaf outcome from the daemon process.
+    if (params.deps.executeLeaf !== undefined) {
+      arcNotifyForOutcome(outcome, params.runId, params.deps.notify);
+    }
   }
 
   return outcome;
