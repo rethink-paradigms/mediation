@@ -383,6 +383,67 @@ export { createEngineRegistry } from "./adapters/engine-registry.ts";
 export type { EngineRegistryOptions } from "./adapters/engine-registry.ts";
 
 // ==========================================================================
+// SURFACES — daemon IPC control/notify transport (phase-2 daemon-ipc slice)
+// L5 connectors: createIpcServer wraps injected RuntimePort +
+// ObservableNotifyPort; createIpcRuntimeClient implements RuntimePort over
+// HTTP (unix socket / tcp loopback) with SSE notify subscription.
+// ==========================================================================
+
+export {
+  createIpcServer,
+  IPC_WAKE_SIGNAL_NAME,
+} from "./surfaces/ipc-server.ts";
+export type {
+  IpcServerOptions,
+  IpcServerHandle,
+} from "./surfaces/ipc-server.ts";
+export {
+  createIpcRuntimeClient,
+  ensureDaemon,
+} from "./surfaces/ipc-client.ts";
+export type {
+  IpcClientOptions,
+  IpcRuntimeClient,
+  IpcClientError,
+  EnsureDaemonOptions,
+  EnsureDaemonResult,
+} from "./surfaces/ipc-client.ts";
+export {
+  IPC_ENDPOINT_DISPATCH,
+  IPC_ENDPOINT_PLAN,
+  IPC_ENDPOINT_STATUS,
+  IPC_ENDPOINT_WAIT,
+  IPC_ENDPOINT_CANCEL,
+  IPC_ENDPOINT_SIGNAL,
+  IPC_ENDPOINT_WAKE,
+  IPC_ENDPOINT_EVENTS,
+  IPC_ENDPOINT_HEALTH,
+  DEFAULT_IPC_SOCKET_NAME,
+  parseIpcEndpoint,
+  ipcSuccess,
+  ipcFailure,
+  ipcStatus,
+  sseEventName,
+  sseFrame,
+  parseSseFrames,
+} from "./surfaces/ipc-protocol.ts";
+export type {
+  IpcEndpoint,
+  IpcTransport,
+  IpcDispatchRequest,
+  IpcPlanRequest,
+  IpcWaitRequest,
+  IpcCancelRequest,
+  IpcSignalRequest,
+  IpcWakeData,
+  IpcWakeRequest,
+  IpcSuccess,
+  IpcFailure,
+  IpcResponse,
+  SseFrameMessage,
+} from "./surfaces/ipc-protocol.ts";
+
+// ==========================================================================
 // COMPOSITION — how the system is WIRED together
 // ==========================================================================
 

@@ -5,8 +5,8 @@
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint -c oxlint.json",
-    "test": "node --experimental-strip-types --test --test-timeout=120000 'test/**/*.test.ts'",
-    "test:runtime": "node --experimental-strip-types --test --test-timeout=120000 'test/runtime/**/*.test.ts'",
+    "test": "node --experimental-strip-types --test --test-timeout=120000 --test-force-exit 'test/**/*.test.ts'",
+    "test:runtime": "node --experimental-strip-types --test --test-timeout=120000 --test-force-exit 'test/runtime/**/*.test.ts'",
     "test:live-pi": "MEDIATION_LIVE_PI=1 node --experimental-strip-types --test test/pi/live-pi.test.ts test/integration/live-pi-factory.test.ts test/runtime/live-engagement-leaf-pi.test.ts test/runtime/live-ow-worker-pi.test.ts test/runtime/live-life-health.test.ts",
     "gauges": "node --experimental-strip-types scripts/gauges/run.ts",
     "gauge:pack-plan": "node --experimental-strip-types scripts/gauges/pack-plan.ts",

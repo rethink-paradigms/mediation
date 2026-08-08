@@ -29,6 +29,7 @@ import type {
 } from "../ports/capability-store.ts";
 import type { JoinStore } from "../ports/join.ts";
 import type { RuntimePort } from "../ports/runtime.ts";
+import type { NotifyPort } from "../ports/notify.ts";
 import type { FsCapabilityStoreOptions } from "./capability/fs-store.ts";
 import {
   CompositeCapabilityStore,
@@ -378,6 +379,13 @@ export type CreateHostedMediationOptions = CreateLocalMediationOptions & {
    * building SpawnLeafConfig — supply explicitly for full control.
    */
   readonly spawnConfig?: SpawnLeafConfig;
+  /**
+   * Optional NotifyPort (D3 P4) threaded to the engagement arc (daemon IPC
+   * slice). In spawn mode the arc re-emits leaf outcomes as notify records
+   * in the daemon process so the notify→interrupt push path works end to end
+   * (see outbox/DAEMON-IPC-DESIGN.md §5).
+   */
+  readonly notify?: NotifyPort;
 };
 
 
@@ -461,6 +469,7 @@ export function createHostedMediation(
     engagementSpec: opts.engagementSpec,
     spawnConfig,
     defaultEngine,
+    notify: opts.notify,
   });
 
 
