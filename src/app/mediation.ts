@@ -83,6 +83,21 @@ export type EngageLocalResult = {
 /**
  * S8 reenter: rematerialize same sessionRef, optional packSnapshot gate, engage.
  */
+/**
+ * D2 pack policy for reenter (default "snapshot").
+ *
+ * "snapshot" — reenter packs = the ORIGINAL packSnapshot that created the
+ *   session (join record planHash, or expectedPackSnapshotHash when given).
+ *   A rematerialized planHash that differs fails the reenter loudly
+ *   (PACK_SNAPSHOT_MISMATCH) without engaging. This is the product default:
+ *   silent latest-yaml reenters are forbidden (D2).
+ *
+ * "latest" — the EXPLICIT, LOUD escape hatch for deliberate agent.yaml
+ *   updates: reenter proceeds on the current yaml (updated packs) with no
+ *   parity gate. Only choose this when the yaml was intentionally changed.
+ */
+export type PackPolicy = "snapshot" | "latest";
+
 export type ReenterInput = {
   readonly agent: AgentRef;
   readonly sessionRef: SessionRef;
@@ -90,9 +105,19 @@ export type ReenterInput = {
   readonly cwd?: string;
   readonly mode?: EngageInput["mode"];
   /**
-   * If set, fail when rematerialized planHash differs (pack parity).
+   * Explicit snapshot baseline override (D2). When packPolicy is "snapshot"
+   * and this is omitted, the baseline is the join record's ORIGINAL
+   * packSnapshot.planHash. When no baseline is knowable, the reenter fails
+   * loudly (PACK_SNAPSHOT_BASELINE_UNAVAILABLE) instead of silently
+   * reentering on latest yaml.
    */
   readonly expectedPackSnapshotHash?: string;
+  /**
+   * D2 pack policy — default "snapshot" (parity with the ORIGINAL
+   * packSnapshot). "latest" is the explicit escape hatch for deliberate
+   * agent.yaml updates.
+   */
+  readonly packPolicy?: PackPolicy;
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
   /**
@@ -103,7 +128,11 @@ export type ReenterInput = {
 };
 
 export type ReenterResult = EngageLocalResult & {
-  /** True when expectedPackSnapshotHash was provided and matched. */
+  /**
+   * True when the reenter was not blocked by the pack gate: snapshot policy
+   * with a matching baseline, or explicit "latest" policy (gate deliberately
+   * not applied).
+   */
   readonly packSnapshotMatch: boolean;
 };
 
@@ -218,32 +247,32 @@ export class Mediation {
     });
     try {
       const hash = presence.packSnapshot.planHash;
-      if (
-        input.expectedPackSnapshotHash !== undefined &&
-        input.expectedPackSnapshotHash !== hash
-      ) {
-        const mismatchOutcome: RunOutcome = outcomeFromError({
-          sessionRef: presence.sessionRef,
-          error: {
-            message: `reenter packSnapshot mismatch: expected ${input.expectedPackSnapshotHash}, got ${hash}`,
+      // D2 pack policy (default "snapshot"): reenter packs must equal the
+      // ORIGINAL packSnapshot — never a silent latest-yaml reenter. "latest"
+      // is the explicit, loud escape hatch for deliberate agent.yaml updates.
+      const packPolicy = input.packPolicy ?? "snapshot";
+      if (packPolicy === "snapshot") {
+        const baseline =
+          input.expectedPackSnapshotHash ?? record?.packSnapshot?.planHash;
+        if (baseline === undefined) {
+          // No original snapshot is knowable (no join record for the
+          // sessionRef, no explicit expected hash). Silent latest-yaml is
+          // exactly what D2 forbids — fail loudly and demand a baseline or
+          // an explicit "latest" choice.
+          return await this.failReenterGate(presence, definition, hash, {
+            code: "PACK_SNAPSHOT_BASELINE_UNAVAILABLE",
+            message:
+              'reenter packPolicy "snapshot": no original packSnapshot baseline ' +
+              "(no join record for this sessionRef and no expectedPackSnapshotHash). " +
+              'Pass expectedPackSnapshotHash, or choose packPolicy: "latest" for a deliberate agent.yaml update.',
+          });
+        }
+        if (baseline !== hash) {
+          return await this.failReenterGate(presence, definition, hash, {
             code: "PACK_SNAPSHOT_MISMATCH",
-          },
-          code: "PACK_SNAPSHOT_MISMATCH",
-        });
-        this.emitEvent({ type: "presence.outcome", presenceId: presence.id, outcome: mismatchOutcome });
-        await this.safeNotify({
-          runId: asRunId(`local:${presence.id}`),
-          sessionRef: presence.sessionRef,
-          event: "failed",
-          payload: notifyPayloadFor(mismatchOutcome),
-        });
-        return {
-          outcome: mismatchOutcome,
-          sessionRef: presence.sessionRef,
-          packSnapshotHash: hash,
-          definitionId: definition.id,
-          packSnapshotMatch: false,
-        };
+            message: `reenter packSnapshot mismatch: expected ${baseline}, got ${hash}`,
+          });
+        }
       }
 
       const mode = input.mode ?? "continue";
@@ -293,9 +322,7 @@ export class Mediation {
    */
   async reenterFromJoin(
     key: { runId: RunId } | { sessionRef: SessionRef },
-    input: Omit<ReenterInput, "sessionRef" | "expectedPackSnapshotHash"> & {
-      readonly enforcePackSnapshot?: boolean;
-    },
+    input: Omit<ReenterInput, "sessionRef">,
   ): Promise<ReenterResult> {
     if (!this.join) {
       throw new Error("Mediation.reenterFromJoin: no JoinStore configured");
@@ -319,10 +346,49 @@ export class Mediation {
       sessionRef: record.sessionRef,
       // Pin the creating run's engine (resume is engine-specific).
       engine: input.engine ?? record.engine,
-      expectedPackSnapshotHash: input.enforcePackSnapshot
-        ? record.packSnapshot.planHash
-        : undefined,
+      // D2: the pack baseline is the join record's ORIGINAL packSnapshot
+      // (explicit expectedPackSnapshotHash wins when the caller provides one).
+      // packPolicy defaults to "snapshot"; "latest" opts into a deliberate
+      // agent.yaml update (the explicit escape hatch).
+      expectedPackSnapshotHash:
+        input.expectedPackSnapshotHash ?? record.packSnapshot.planHash,
     });
+  }
+
+  /**
+   * D2 pack-gate failure: emit + notify + return failed result without
+   * engaging. Shared by PACK_SNAPSHOT_MISMATCH (baseline known, differs) and
+   * PACK_SNAPSHOT_BASELINE_UNAVAILABLE (no original snapshot knowable).
+   */
+  private async failReenterGate(
+    presence: AgentPresence,
+    definition: AgentDefinition,
+    hash: string,
+    failure: { readonly code: string; readonly message: string },
+  ): Promise<ReenterResult> {
+    const gateOutcome: RunOutcome = outcomeFromError({
+      sessionRef: presence.sessionRef,
+      error: { message: failure.message, code: failure.code },
+      code: failure.code,
+    });
+    this.emitEvent({
+      type: "presence.outcome",
+      presenceId: presence.id,
+      outcome: gateOutcome,
+    });
+    await this.safeNotify({
+      runId: asRunId(`local:${presence.id}`),
+      sessionRef: presence.sessionRef,
+      event: "failed",
+      payload: notifyPayloadFor(gateOutcome),
+    });
+    return {
+      outcome: gateOutcome,
+      sessionRef: presence.sessionRef,
+      packSnapshotHash: hash,
+      definitionId: definition.id,
+      packSnapshotMatch: false,
+    };
   }
 
   /** Dispatch durable engagement via RuntimePort. */

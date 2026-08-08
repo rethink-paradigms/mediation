@@ -100,7 +100,7 @@ export function capabilitySpecFromDefinition(
  * The resolver still receives an explicit layer list (kind "agent") so the
  * port contract stays uniform — the merge already happened in the loader.
  */
-export function capabilityLayersFromDefinition(
+function capabilityLayersFromDefinition(
   definition: AgentDefinition,
 ): readonly ConfigLayer[] {
   return [{ kind: "agent", spec: capabilitySpecFromDefinition(definition) }];

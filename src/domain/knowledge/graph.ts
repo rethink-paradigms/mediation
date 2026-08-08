@@ -24,10 +24,6 @@ export class UnknownCapabilityError extends Error {
   }
 }
 
-export type GraphBuildError = {
-  readonly message: string;
-};
-
 /**
  * Build a CapabilityGraph from node/edge lists, validating integrity:
  * unique ids, well-formed identities, edge endpoints exist, no duplicate

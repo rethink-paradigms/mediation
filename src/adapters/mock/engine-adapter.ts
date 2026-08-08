@@ -18,7 +18,7 @@ import type {
   OpenSessionRequest,
 } from "../../ports/engine.ts";
 
-export type MockEngineAdapterOptions = {
+type MockEngineAdapterOptions = {
   /** Fixed sessionRef for new sessions (default: mock-session-<n>). */
   sessionRefFactory?: () => SessionRef;
 };

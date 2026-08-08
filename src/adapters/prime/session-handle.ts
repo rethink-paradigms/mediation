@@ -21,7 +21,7 @@ import {
 import { mapPrimeEvent } from "./event-map.ts";
 import type { PrimeSessionEvent, PrimeSessionSurface } from "./types.ts";
 
-export type PrimeEngineSessionHandleOptions = {
+type PrimeEngineSessionHandleOptions = {
   readonly session: PrimeSessionSurface;
   readonly sessionRef: SessionRef;
   /** Map agent_end as idle (default false — idle via session.waitForIdle). */

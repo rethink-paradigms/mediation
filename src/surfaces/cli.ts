@@ -22,7 +22,7 @@ import path from "node:path";
 
 import { createLocalMediation } from "../adapters/compose.ts";
 import { createRuntimeClient } from "../adapters/openworkflow/host.ts";
-import { createMediationSurface } from "../adapters/surface/mediation-surface.ts";
+import { createMediationSurface } from "./mediation-surface.ts";
 import { asEngineKind, type EngineKind } from "../domain/engine.ts";
 import { asSessionRef } from "../domain/presence.ts";
 import type { SurfacePort } from "../ports/surface.ts";

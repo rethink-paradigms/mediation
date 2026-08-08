@@ -561,6 +561,10 @@ describe(
         task: "pong",
         cwd: PKG_ROOT,
         mode: "continue",
+        // H6b probes the inMemory continuation gap, not pack parity — the
+        // inMemory session has no join record, so deliberately reenter on
+        // current yaml and let the engine fail closed as documented.
+        packPolicy: "latest",
       });
       // eslint-disable-next-line no-console
       console.error(

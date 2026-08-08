@@ -13,7 +13,7 @@ import { createLocalMediation } from "../../src/adapters/compose.ts";
 import { MockEnginePort } from "../../src/adapters/mock/engine-adapter.ts";
 import { toPackSnapshot } from "../../src/adapters/packs/pack-snapshot.ts";
 import { agentDefForPacks } from "../helpers/agent-def.ts";
-import { createMediationSurface } from "../../src/adapters/surface/mediation-surface.ts";
+import { createMediationSurface } from "../../src/surfaces/mediation-surface.ts";
 import { DefaultPresenceFactory } from "../../src/app/factory.ts";
 import { Mediation } from "../../src/app/mediation.ts";
 import { asSessionRef } from "../../src/domain/presence.ts";
