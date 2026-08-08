@@ -200,7 +200,7 @@ export type { InProcessNotifyListener } from "./adapters/notify/in-process.ts";
 export {
   createMediationSurface,
   MediationSurface,
-} from "./adapters/surface/mediation-surface.ts";
+} from "./surfaces/mediation-surface.ts";
 
 // --- YamlDefinitionLoader (inert agent.yaml → AgentDefinition) ---
 export {

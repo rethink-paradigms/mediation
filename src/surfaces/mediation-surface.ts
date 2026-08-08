@@ -1,19 +1,21 @@
 /**
  * Mediation as SurfacePort (ABS-B2 / LIFE-P3).
  * Law D5: surfaces are connectors — CLI/MCP talk to SurfacePort only;
- * this adapter maps SurfaceRequest DTOs onto the Mediation façade.
+ * this surface maps SurfaceRequest DTOs onto the Mediation façade.
+ * Lives in surfaces/ (not adapters/) because it imports the app layer
+ * legitimately (layer law D4-A1: surfaces may import app; adapters must not).
  */
 
-import type { Mediation } from "../../app/mediation.ts";
-import type { RunId } from "../../domain/engagement.ts";
+import type { Mediation } from "../app/mediation.ts";
+import type { RunId } from "../domain/engagement.ts";
 import type {
   SurfaceEngageResult,
   SurfacePort,
   SurfaceReenterRequest,
   SurfaceReenterResult,
   SurfaceRequest,
-} from "../../ports/surface.ts";
-import type { DispatchHandle, RuntimeStatus } from "../../ports/runtime.ts";
+} from "../ports/surface.ts";
+import type { DispatchHandle, RuntimeStatus } from "../ports/runtime.ts";
 
 /**
  * Wrap a Mediation instance as SurfacePort.
@@ -54,6 +56,7 @@ export function createMediationSurface(mediation: Mediation): SurfacePort {
         mode: req.mode,
         cwd: req.cwd,
         expectedPackSnapshotHash: req.expectedPackSnapshotHash,
+        packPolicy: req.packPolicy,
         parkIntent: req.parkIntent,
         parkReason: req.parkReason,
         engine: req.engine,

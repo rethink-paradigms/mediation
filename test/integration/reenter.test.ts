@@ -123,11 +123,119 @@ describe("Mediation.reenter (S8)", () => {
         agent,
         task: "human approved",
         mode: "continue",
-        enforcePackSnapshot: true,
+        // D2 default: snapshot parity enforced (no flag needed).
       },
     );
     assert.equal(fromJoin.packSnapshotMatch, true);
     assert.equal(fromJoin.outcome.kind, "settled");
     assert.equal(fromJoin.sessionRef, parked.sessionRef);
+  });
+
+  it("D2 default: mismatch fails reenterFromJoin without engaging (no flag)", async () => {
+    const { mediation, join } = makeMediation();
+    const agent = { name: "d2-mismatch-join", rootDir: FIXTURE_ROOT };
+
+    // The join record's original packSnapshot differs from what the yaml now
+    // materializes to (simulating an agent.yaml edit after session creation).
+    await join.put({
+      runId: asRunId("run-d2-mismatch"),
+      sessionRef: asSessionRef("d2-sess"),
+      definitionId: "d2-mismatch",
+      packSnapshot: {
+        planHash: "0".repeat(64),
+        packs: [],
+        createdAt: new Date().toISOString(),
+      },
+      status: "parked",
+      updatedAt: new Date().toISOString(),
+    });
+
+    const result = await mediation.reenterFromJoin(
+      { runId: asRunId("run-d2-mismatch") },
+      { agent, task: "continue on updated yaml" },
+    );
+    assert.equal(result.packSnapshotMatch, false);
+    assert.equal(result.outcome.kind, "failed");
+    if (result.outcome.kind === "failed") {
+      assert.equal(result.outcome.error.code, "PACK_SNAPSHOT_MISMATCH");
+    }
+  });
+
+  it("D2 explicit escape hatch: packPolicy latest reenters on updated yaml", async () => {
+    const { mediation, join } = makeMediation();
+    const agent = { name: "d2-latest", rootDir: FIXTURE_ROOT };
+
+    // Same stale-record setup as the mismatch test — but the caller DELIBERATELY
+    // opts into the updated yaml via packPolicy: "latest" (loud escape hatch).
+    await join.put({
+      runId: asRunId("run-d2-latest"),
+      sessionRef: asSessionRef("d2-latest-sess"),
+      definitionId: "d2-latest",
+      packSnapshot: {
+        planHash: "0".repeat(64),
+        packs: [],
+        createdAt: new Date().toISOString(),
+      },
+      status: "parked",
+      updatedAt: new Date().toISOString(),
+    });
+
+    const result = await mediation.reenterFromJoin(
+      { runId: asRunId("run-d2-latest") },
+      { agent, task: "reenter on updated yaml", packPolicy: "latest" },
+    );
+    assert.equal(result.packSnapshotMatch, true);
+    assert.equal(result.outcome.kind, "settled");
+    assert.equal(result.sessionRef, "d2-latest-sess");
+  });
+
+  it("D2 default: direct reenter with no baseline fails loudly", async () => {
+    const { mediation } = makeMediation();
+    const agent = { name: "d2-no-baseline", rootDir: FIXTURE_ROOT };
+
+    // No join record, no expectedPackSnapshotHash → the original packSnapshot
+    // is unknowable; silent latest-yaml reenter is D2-forbidden.
+    const result = await mediation.reenter({
+      agent,
+      sessionRef: asSessionRef("d2-nobase-sess"),
+      task: "y",
+    });
+    assert.equal(result.packSnapshotMatch, false);
+    assert.equal(result.outcome.kind, "failed");
+    if (result.outcome.kind === "failed") {
+      assert.equal(
+        result.outcome.error.code,
+        "PACK_SNAPSHOT_BASELINE_UNAVAILABLE",
+      );
+    }
+  });
+
+  it("D2 default: direct reenter uses join-record baseline (mismatch fails)", async () => {
+    const { mediation, join } = makeMediation();
+    const agent = { name: "d2-direct-baseline", rootDir: FIXTURE_ROOT };
+
+    await join.put({
+      runId: asRunId("run-d2-direct"),
+      sessionRef: asSessionRef("d2-direct-sess"),
+      definitionId: "d2-direct",
+      packSnapshot: {
+        planHash: "0".repeat(64),
+        packs: [],
+        createdAt: new Date().toISOString(),
+      },
+      status: "parked",
+      updatedAt: new Date().toISOString(),
+    });
+
+    const result = await mediation.reenter({
+      agent,
+      sessionRef: asSessionRef("d2-direct-sess"),
+      task: "continue",
+    });
+    assert.equal(result.packSnapshotMatch, false);
+    assert.equal(result.outcome.kind, "failed");
+    if (result.outcome.kind === "failed") {
+      assert.equal(result.outcome.error.code, "PACK_SNAPSHOT_MISMATCH");
+    }
   });
 });

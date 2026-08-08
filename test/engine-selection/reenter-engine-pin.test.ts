@@ -159,7 +159,13 @@ describe("resume pins the engine (S2e §5)", () => {
 
     const result = await mediation.reenterFromJoin(
       { runId },
-      { agent: { name: "pin-agent-s2e", rootDir: FIXTURE_ROOT }, task: "continue" },
+      {
+        agent: { name: "pin-agent-s2e", rootDir: FIXTURE_ROOT },
+        task: "continue",
+        // Engine-pin focus (not pack parity): deliberately reenter on current
+        // yaml — the fixture record's planHash is a stand-in, not a real one.
+        packPolicy: "latest",
+      },
     );
     assert.equal(result.outcome.kind, "settled");
     // no explicit override → record.engine "prime" pinned
@@ -204,6 +210,8 @@ describe("resume pins the engine (S2e §5)", () => {
         agent: { name: "pin-agent-s2e", rootDir: FIXTURE_ROOT },
         task: "continue",
         engine: "mock",
+        // Engine-pin focus (not pack parity).
+        packPolicy: "latest",
       },
     );
     assert.equal(result.outcome.kind, "settled");
@@ -245,6 +253,8 @@ describe("resume pins the engine (S2e §5)", () => {
       agent: { name: "pin-agent-s2e", rootDir: FIXTURE_ROOT },
       sessionRef: asSessionRef("prime-session"),
       task: "continue",
+      // Engine-pin focus (not pack parity).
+      packPolicy: "latest",
     });
     assert.equal(result.outcome.kind, "settled");
     assert.deepEqual(recorded, [{ engine: "prime" }]);

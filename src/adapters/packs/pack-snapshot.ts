@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import type { PackLoadPlan, PackRef, PackSnapshot } from "../../domain/packs.js";
 
 /** Canonical object for hashing: sorted by id then source (no absolute path). */
-export type PackHashEntry = {
+type PackHashEntry = {
   id: string;
   source: string;
 };
@@ -19,7 +19,7 @@ export type PackHashEntry = {
  * Stable JSON of sorted pack ids/sources.
  * Sort is lexicographic on id, then source (deterministic, portable).
  */
-export function canonicalPackEntries(packs: readonly PackRef[]): PackHashEntry[] {
+function canonicalPackEntries(packs: readonly PackRef[]): PackHashEntry[] {
   return packs
     .map((p) => ({ id: p.id, source: p.source }))
     .sort((a, b) => {

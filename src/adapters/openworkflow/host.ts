@@ -198,7 +198,7 @@ export function createSqliteRuntimeHost(
 
 // ── Lightweight runtime client (no worker) ───────────────────────────────────
 
-export type SqliteRuntimeClient = {
+type SqliteRuntimeClient = {
   readonly runtime: RuntimePort;
   stop(): Promise<void>;
 };

@@ -18,7 +18,7 @@
  */
 
 /** Inputs to the bridge builder (D2: whatWasAwaited + payload). */
-export type ParkBridgeInput = {
+type ParkBridgeInput = {
   /**
    * The wait contract the engagement was parked on (park reason /
    * resumeToken semantics). May be empty when unknown — the builder then
@@ -30,7 +30,7 @@ export type ParkBridgeInput = {
 };
 
 /** Output of the bridge builder. */
-export type ParkBridgeMessage = {
+type ParkBridgeMessage = {
   /** Full user-message text: wait contract + response (bridge). */
   readonly text: string;
 };

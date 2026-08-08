@@ -10,7 +10,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { createHostedMediation } from "../../src/adapters/compose.ts";
-import { createMediationSurface } from "../../src/adapters/surface/mediation-surface.ts";
+import { createMediationSurface } from "../../src/surfaces/mediation-surface.ts";
 import { SqliteJoinStore } from "../../src/adapters/join/sqlite-store.ts";
 import { createLocalMediation } from "../../src/adapters/compose.ts";
 import { agentDefForPacks } from "../helpers/agent-def.ts";

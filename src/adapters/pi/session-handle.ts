@@ -14,7 +14,7 @@ import {
 import { mapPiEvent } from "./event-map.ts";
 import type { PiSessionEvent, PiSessionSurface } from "./types.ts";
 
-export type PiEngineSessionHandleOptions = {
+type PiEngineSessionHandleOptions = {
   readonly session: PiSessionSurface;
   readonly sessionRef: SessionRef;
   /** Map agent_end(willRetry=false) as idle (default false). */

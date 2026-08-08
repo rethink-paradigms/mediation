@@ -157,7 +157,7 @@ export { resolveCapabilityResolver };
  * Returns the resolver plus the store chain / default registry for tests and
  * diagnostics.
  */
-export function resolveCapabilityResolverWithStores(opts: {
+function resolveCapabilityResolverWithStores(opts: {
   readonly capabilityResolver?: CapabilityResolver;
   readonly capabilityStore?: CapabilityStore;
   readonly capabilityStores?: readonly CapabilityStore[];
@@ -248,7 +248,7 @@ type MindWiring = {
 };
 
 /** Composition default engine: explicit wins; else legacy mockEngine mapping. */
-export function resolveCompositionDefaultEngine(opts: {
+function resolveCompositionDefaultEngine(opts: {
   readonly defaultEngine?: EngineKind;
   readonly mockEngine?: boolean;
 }): EngineKind {

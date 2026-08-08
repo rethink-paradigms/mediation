@@ -196,7 +196,7 @@ function extractResidualMeta(
  * Returns a plain record; mapYamlToDefinition re-validates it with the strict
  * AgentYamlSchema (name + model guaranteed by the agent layer).
  */
-export function mergeDefinitionLayers(
+function mergeDefinitionLayers(
   layers: readonly {
     readonly kind: ConfigLayerKind;
     readonly yaml: ParsedLayerYaml;
@@ -500,7 +500,7 @@ export function mapYamlToDefinition(
  * layer's declared `root:` / `extends:`. Omitted fields fall back to the
  * declared values (and rootConfigPath for root).
  */
-export type LoadDefinitionOptions = {
+type LoadDefinitionOptions = {
   readonly rootRef?: string;
   readonly familyRef?: string;
 };

@@ -62,6 +62,12 @@ export type SurfaceReenterRequest = {
    * If set, fail when rematerialized planHash differs (pack parity).
    */
   readonly expectedPackSnapshotHash?: string;
+  /**
+   * D2 pack policy — default "snapshot" (reenter must match the ORIGINAL
+   * packSnapshot). "latest" is the explicit escape hatch for deliberate
+   * agent.yaml updates.
+   */
+  readonly packPolicy?: "snapshot" | "latest";
   readonly parkIntent?: boolean;
   readonly parkReason?: string;
   /** Per-call engine override (S2e) — reenter pins the run's engine. */
@@ -72,7 +78,10 @@ export type SurfaceReenterRequest = {
  * Reenter result — engage result + pack snapshot gate flag.
  */
 export type SurfaceReenterResult = SurfaceEngageResult & {
-  /** True when expectedPackSnapshotHash was provided and matched (or omitted). */
+  /**
+   * True when the reenter was not blocked by the pack gate: snapshot policy
+   * with a matching baseline, or explicit "latest" policy (gate not applied).
+   */
   readonly packSnapshotMatch: boolean;
 };
 
