@@ -332,6 +332,7 @@ export type {
 export { Mediation } from "./app/mediation.ts";
 export type {
   MediationDeps,
+  MediationKnowledgeFace,
   EngageLocalInput,
   EngageLocalResult,
   ReenterInput,

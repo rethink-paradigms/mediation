@@ -5,6 +5,7 @@
  * capability ids, never paths.
  */
 
+import type { AgentRef } from "../domain/definition.ts";
 import type { CapabilityGraph } from "../domain/knowledge/types.ts";
 import type {
   CapabilityConfig,
@@ -42,4 +43,11 @@ export interface KnowledgePort {
   compose(ids: readonly string[]): Promise<ComposeResult>;
   /** explain — config → natural-language why-choices. */
   explain(config: CapabilityConfig): Promise<ExplainResult>;
+  /**
+   * Optional bridge to the pack/definition world (phase 2 seam): capability
+   * identity → AgentRef the DefinitionLoader can resolve. Lets a surface go
+   * resolveIntent → agent → engage. Absent when the adapter has no mapping
+   * (the DEFAULT_CATALOG is pure capability data — no agent nodes today).
+   */
+  agentFor?(identity: string): Promise<AgentRef | undefined>;
 }

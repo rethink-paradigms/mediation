@@ -14,6 +14,8 @@ import {
   resolveIntent,
   validateConfig,
 } from "../../domain/knowledge/operations.ts";
+import { findNode } from "../../domain/knowledge/graph.ts";
+import type { AgentRef } from "../../domain/definition.ts";
 import type {
   CapabilityConfig,
   CapabilityGraph,
@@ -33,9 +35,19 @@ import type {
 /** KnowledgePort implementation over a supplied (or default) catalog. */
 export class KnowledgeService implements KnowledgePort {
   private readonly graph: CapabilityGraph;
+  /**
+   * Optional catalog→agent mapping layer (phase 2 seam): capability identity
+   * → AgentRef. Consulted after the node's own `agentRef` field; either side
+   * bridges the pure capability graph into the pack/definition world.
+   */
+  private readonly agentRefs: Readonly<Record<string, AgentRef>>;
 
-  constructor(graph: CapabilityGraph = DEFAULT_CATALOG) {
+  constructor(
+    graph: CapabilityGraph = DEFAULT_CATALOG,
+    agentRefs: Readonly<Record<string, AgentRef>> = {},
+  ) {
     this.graph = graph;
+    this.agentRefs = agentRefs;
   }
 
   async loadGraph(): Promise<CapabilityGraph> {
@@ -65,11 +77,23 @@ export class KnowledgeService implements KnowledgePort {
   async explain(config: CapabilityConfig): Promise<ExplainResult> {
     return explainConfig(this.graph, config);
   }
+
+  /**
+   * Catalog→agent bridge: node-declared `agentRef` wins, then the runtime
+   * mapping injected at construction. Undefined when neither side maps the
+   * capability (DEFAULT_CATALOG is pure capability data — no agent nodes).
+   */
+  async agentFor(identity: string): Promise<AgentRef | undefined> {
+    const node = findNode(this.graph, identity);
+    if (node?.agentRef !== undefined) return node.agentRef;
+    return this.agentRefs[identity];
+  }
 }
 
 /** Convenience factory over the default (Pi) catalog. */
 export function createKnowledgeService(
   graph: CapabilityGraph = DEFAULT_CATALOG,
+  agentRefs?: Readonly<Record<string, AgentRef>>,
 ): KnowledgePort {
-  return new KnowledgeService(graph);
+  return new KnowledgeService(graph, agentRefs);
 }
