@@ -8,6 +8,7 @@
  * @company/mediation — these tests pin its public shape.
  */
 
+import path from "node:path";
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -192,12 +193,33 @@ describe("Mediation knowledge bridge (catalog → agent)", () => {
     assert.equal(await port.agentFor("m.unknown"), undefined);
   });
 
-  it("the default catalog maps no capabilities to agents (known limitation, seam present)", async () => {
+  it("the plain service default (engine catalog) maps no capabilities to agents", async () => {
+    // createKnowledgeService() defaults to DEFAULT_CATALOG — the pure engine
+    // capability catalog, which has no agent nodes. The fleet mapping is the
+    // COMPOSITION default (createLocal/HostedMediation wire
+    // buildDefaultKnowledgeCatalog), covered in fleet-catalog.test.ts.
     const port = createKnowledgeService();
     const all = await port.list({});
     for (const n of all) {
       assert.equal(await port.agentFor?.(n.identity), undefined);
     }
+  });
+
+  it("the composition default maps fleet agents when a fleet root is wired", async () => {
+    // Deterministic: an explicit agentsRoot is honored by the compose default
+    // knowledge wiring (production uses the company convention / env var).
+    const { mediation } = createLocalMediation({
+      mockEngine: true,
+      fleetAgentsRoot: path.resolve(
+        import.meta.dirname,
+        "../../fixtures/fleet-agents",
+      ),
+    });
+    const k = mediation.knowledge!;
+    assert.ok(k.agentFor, "fleet wiring must surface the bridge");
+    const ref = await k.agentFor!("agent.web-researcher");
+    assert.equal(ref?.name, "web-researcher");
+    assert.ok(ref?.rootDir.endsWith("web-researcher"));
   });
 
   it("face exposes no agentFor when the wired port implements none", async () => {

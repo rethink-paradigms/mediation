@@ -81,7 +81,9 @@ export class KnowledgeService implements KnowledgePort {
   /**
    * Catalog→agent bridge: node-declared `agentRef` wins, then the runtime
    * mapping injected at construction. Undefined when neither side maps the
-   * capability (DEFAULT_CATALOG is pure capability data — no agent nodes).
+   * capability. The plain engine DEFAULT_CATALOG has no agent nodes; the
+   * fleet-enriched default (compose wiring, buildDefaultKnowledgeCatalog)
+   * carries agentRef on each agent.<name> node.
    */
   async agentFor(identity: string): Promise<AgentRef | undefined> {
     const node = findNode(this.graph, identity);

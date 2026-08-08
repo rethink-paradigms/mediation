@@ -1,0 +1,9 @@
+name: cognitive-cartographer
+model: deepseek/deepseek-v4-pro
+thinking: high
+max_concurrency: 1
+
+tools:
+  builtin: [read, bash, write, ls, find]
+
+prompt: prompt.md

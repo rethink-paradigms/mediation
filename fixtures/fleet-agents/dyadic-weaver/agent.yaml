@@ -1,0 +1,11 @@
+name: dyadic-weaver
+model: deepseek/deepseek-v4-pro
+thinking: high
+max_concurrency: 1
+
+description: Builds a vocabulary of dyadic interaction patterns by reading session traces of human-agent interaction.
+
+tools:
+  builtin: [read, bash, ls, find]
+
+prompt: prompt.md

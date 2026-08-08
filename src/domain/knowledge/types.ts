@@ -26,8 +26,12 @@ export function asCapabilityIdentity(value: string): CapabilityIdentity {
   return value as CapabilityIdentity;
 }
 
-/** Allowed identity shape: `m.<segment>(.<segment>)*` — hyphens ok, no slashes/paths (D5). */
-export const CAPABILITY_IDENTITY_PATTERN = /^m\.[a-z0-9-]+(\.[a-z0-9-]+)*$/u;
+/**
+ * Allowed identity shape: `<namespace>.<segment>(.<segment>)*` where
+ * namespace is `m` (engine capabilities, first pour) or `agent` (fleet agent
+ * nodes, phase 2 catalog accuracy) — hyphens ok, no slashes/paths (D5).
+ */
+export const CAPABILITY_IDENTITY_PATTERN = /^(m|agent)\.[a-z0-9-]+(\.[a-z0-9-]+)*$/u;
 
 /** True when `value` is a valid capability identity (medium-independent, D5). */
 export function isCapabilityIdentity(value: string): boolean {

@@ -1,0 +1,9 @@
+name: mystery-agent
+model: deepseek/deepseek-v4-flash
+thinking: off
+
+tools:
+  builtin: [read]
+  custom: [sniff_signal, trace_beam]
+
+prompt: prompt.md

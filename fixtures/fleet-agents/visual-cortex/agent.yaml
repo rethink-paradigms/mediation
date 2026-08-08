@@ -1,0 +1,9 @@
+name: visual-cortex
+model: deepseek/deepseek-v4-flash
+thinking: off
+max_concurrency: 1
+
+tools:
+  builtin: [read, bash, write, edit, ls, find, grep]
+
+prompt: spec.md

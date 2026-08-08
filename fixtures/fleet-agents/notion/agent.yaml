@@ -1,0 +1,12 @@
+name: notion
+model: deepseek/deepseek-v4-flash
+thinking: off
+max_concurrency: 1
+
+tools:
+  builtin: [read, bash, write, ls, find]
+
+extensions:
+  - notion
+
+prompt: spec.md
