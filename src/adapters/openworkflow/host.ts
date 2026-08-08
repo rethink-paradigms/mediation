@@ -43,6 +43,30 @@ import type {
 } from "./types.ts";
 
 
+/**
+ * Parked probe for the RuntimePort backend face (M park-status fix): true
+ * when the run has an active signal-wait step attempt — OW's sqlite backend
+ * keeps such runs in status "running" (sleepWorkflowRun sets 'running' with a
+ * future available_at), so this step-attempt scan is the reliable parked
+ * signal. Best-effort: any backend hiccup → false (status stays plain running).
+ */
+async function hasActiveSignalWait(
+  backend: BackendSqlite,
+  workflowRunId: string,
+): Promise<boolean> {
+  try {
+    const page = await backend.listStepAttempts({
+      workflowRunId,
+      limit: 200,
+    });
+    return page.data.some(
+      (a) => a.kind === "signal-wait" && a.status === "running",
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Worker face returned by OpenWorkflow.newWorker (start / stop / tick). */
 export type RuntimeHostWorker = {
   start(): Promise<void>;
@@ -159,6 +183,8 @@ export function createSqliteRuntimeHost(
     ow,
     backend: {
       getWorkflowRun: (params) => backend.getWorkflowRun(params),
+      isRunParked: (workflowRunId) =>
+        hasActiveSignalWait(backend, workflowRunId),
     },
     engagementSpec,
     planSpec,
@@ -222,7 +248,11 @@ export function createRuntimeClient(opts: {
   const ow = new OpenWorkflow({ backend });
   const runtime = new OpenWorkflowRuntime({
     ow,
-    backend: { getWorkflowRun: (params) => backend.getWorkflowRun(params) },
+    backend: {
+      getWorkflowRun: (params) => backend.getWorkflowRun(params),
+      isRunParked: (workflowRunId) =>
+        hasActiveSignalWait(backend, workflowRunId),
+    },
     engagementSpec: defaultEngagementWorkflowSpec(),
     pollIntervalMs: opts.pollIntervalMs,
   });

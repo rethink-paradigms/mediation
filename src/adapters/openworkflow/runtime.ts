@@ -58,7 +58,18 @@ export type RuntimeBackend = {
     status: OwWorkflowRunStatus;
     output?: unknown;
     error?: unknown;
+    /** OW WorkflowRun.availableAt (lease/resume instant), when exposed. */
+    availableAt?: string | Date | null;
   } | null>;
+  /**
+   * Optional: true when the run currently has an active signal-wait step
+   * attempt — i.e. the workflow is PARKED waiting for a signal (Model P),
+   * not actively executing. OW's sqlite backend keeps sleeping runs in
+   * status "running" (the literal "sleeping" status never appears there),
+   * so a status-only caller cannot tell "running" from "parked awaiting
+   * wake" without this signal. Absent → getStatus never sets parked.
+   */
+  isRunParked?: (workflowRunId: string) => Promise<boolean>;
 };
 
 /** OpenWorkflow client face used by the adapter (dispatch / cancel / signal). */
@@ -123,16 +134,24 @@ function toEngagementInput(input: DispatchInput): EngagementWorkflowInput {
   };
 }
 
-function mapOwStatus(run: {
-  status: OwWorkflowRunStatus;
-  output?: unknown;
-  error?: unknown;
-}): RuntimeStatus {
+function mapOwStatus(
+  run: {
+    status: OwWorkflowRunStatus;
+    output?: unknown;
+    error?: unknown;
+  },
+  parked?: boolean,
+): RuntimeStatus {
   switch (run.status) {
     case "pending":
       return { state: "pending" };
     case "running":
-      return { state: "running" };
+      // sqlite backend keeps a parked (signal-wait) run in status "running";
+      // the isRunParked probe (active signal-wait step attempt) is the only
+      // reliable parked signal there. Legacy "sleeping" string also maps.
+      return parked === true
+        ? { state: "running", parked: true }
+        : { state: "running" };
     case "sleeping":
       // OW sleep ≈ parked / waiting continuum at orchestration layer
       return { state: "running", parked: true };
@@ -221,7 +240,16 @@ export class OpenWorkflowRuntime implements RuntimePort {
         error: { message: `Unknown runId: ${runId}`, code: "RUN_NOT_FOUND" },
       };
     }
-    return mapOwStatus(run);
+    let parked: boolean | undefined;
+    if (run.status === "running" && this.backend.isRunParked !== undefined) {
+      try {
+        parked = await this.backend.isRunParked(runId);
+      } catch {
+        // probe failure must not fail getStatus
+        parked = undefined;
+      }
+    }
+    return mapOwStatus(run, parked);
   }
 
   async wait(

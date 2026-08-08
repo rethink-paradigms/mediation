@@ -120,6 +120,13 @@ export class SqliteJoinStore implements JoinStore {
     const parkedJson = record.parked
       ? JSON.stringify(record.parked)
       : null;
+    // pack_snapshot_json is TEXT NOT NULL; a synthesized record without a
+    // packSnapshot (e.g. a canceled/aborted run with no materialize) must
+    // bind "null", never JSON.stringify(undefined) — node:sqlite rejects
+    // binding a non-string undefined with "Provided value cannot be bound
+    // to SQLite parameter 4" (the pack_snapshot_json slot). JSON.stringify
+    // of null yields the string "null", which binds cleanly.
+    const packSnapshotJson = JSON.stringify(record.packSnapshot ?? null);
     // BEGIN IMMEDIATE: prevents DELETE-INSERT gap from racing with concurrent writers.
     this.db.exec("BEGIN IMMEDIATE");
     try {
@@ -150,7 +157,7 @@ export class SqliteJoinStore implements JoinStore {
           record.runId,
           record.sessionRef,
           record.definitionId,
-          JSON.stringify(record.packSnapshot),
+          packSnapshotJson,
           record.status,
           parkedJson,
           record.updatedAt,
