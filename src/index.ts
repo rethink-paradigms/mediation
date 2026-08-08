@@ -380,6 +380,7 @@ export type {
 } from "./domain/engine.ts";
 export type { EngineRegistry } from "./ports/engine.ts";
 export { createEngineRegistry } from "./adapters/engine-registry.ts";
+export { createRuntimeClient } from "./adapters/openworkflow/host.ts";
 export type { EngineRegistryOptions } from "./adapters/engine-registry.ts";
 
 // ==========================================================================
