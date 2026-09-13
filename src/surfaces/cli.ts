@@ -239,9 +239,6 @@ function composeDefaultSurface(opts: {
   const { mediation } = createLocalMediation({
     defaultEngine: opts.defaultEngine,
     projectRoot: opts.projectRoot,
-    fsStoreOptions: {
-      homeDir: path.join(opts.projectRoot, "_no_home"),
-    },
   });
   return createMediationSurface(mediation);
 }

@@ -4,14 +4,15 @@
  * Maps bare capability ids to module paths via harness search order.
  * Absolute paths live only in entry / ref.locator — never as domain identity.
  *
- * Search order (from company/agents/_harness/resolve.ts / former resolveExtensionPath):
+ * Search order (mirrors company/agents/_harness/resolve.ts `resolveExtension`):
  * 1. name contains `/` → projectRoot-relative
- * 2. tools/internal/<name>
- * 3. extensions/<name>
- * 4. .pi/extensions/<name>
- * 5. tools/families/<name>
- * 6. ~/.pi/agent/extensions/<name>
- * 7. absolute path if exists
+ * 2. extensions/<category>/<name> (canonical categorized layout)
+ * 3. tools/internal/<name>
+ * 4. extensions/<name> (flat fallback)
+ * 5. .pi/extensions/<name>
+ * 6. tools/families/<name>
+ * 7. ~/.pi/agent/extensions/<name>
+ * 8. absolute path if exists
  */
 
 import fs from "node:fs";
@@ -28,6 +29,24 @@ import type {
   CapabilityGetOptions,
   CapabilityStore,
 } from "../../ports/capability-store.ts";
+
+/**
+ * Extension category subdirectories under <projectRoot>/extensions/.
+ * Mirrors agents/_harness/resolve.ts CATEGORIES — searched in order.
+ */
+const CATEGORIES = [
+  "core",
+  "coding",
+  "agents",
+  "internal",
+  "ui",
+  "perceive",
+  "canvas",
+  "fleet",
+  "families",
+  "experimental",
+  "personal",
+] as const;
 
 /**
  * Where a module was found in the ordered FS search.
@@ -74,37 +93,45 @@ export function resolveFsModule(
     }
   }
 
-  // 2. tools/internal/<name>
+  // 2. extensions/<category>/<name> — canonical categorized layout
+  for (const cat of CATEGORIES) {
+    const catPath = path.join(root, "extensions", cat, name);
+    if (fs.existsSync(catPath)) {
+      return { id: name, path: catPath, source: "project-extensions" };
+    }
+  }
+
+  // 3. tools/internal/<name>
   const internalPath = path.join(root, "tools", "internal", name);
   if (fs.existsSync(internalPath)) {
     return { id: name, path: internalPath, source: "internal" };
   }
 
-  // 3. extensions/<name>
+  // 4. extensions/<name> (flat fallback)
   const projectExtPath = path.join(root, "extensions", name);
   if (fs.existsSync(projectExtPath)) {
     return { id: name, path: projectExtPath, source: "project-extensions" };
   }
 
-  // 4. .pi/extensions/<name>
+  // 5. .pi/extensions/<name>
   const dotPiPath = path.join(root, ".pi", "extensions", name);
   if (fs.existsSync(dotPiPath)) {
     return { id: name, path: dotPiPath, source: "agent" };
   }
 
-  // 5. tools/families/<name>
+  // 6. tools/families/<name>
   const familyPath = path.join(root, "tools", "families", name);
   if (fs.existsSync(familyPath)) {
     return { id: name, path: familyPath, source: "families" };
   }
 
-  // 6. ~/.pi/agent/extensions/<name>
+  // 7. ~/.pi/agent/extensions/<name>
   const globalPath = path.join(homeDir, ".pi", "agent", "extensions", name);
   if (fs.existsSync(globalPath)) {
     return { id: name, path: globalPath, source: "global-pi" };
   }
 
-  // 7. Absolute path if exists
+  // 8. Absolute path if exists
   if (path.isAbsolute(name) && fs.existsSync(name)) {
     return { id: name, path: name, source: "explicit" };
   }
