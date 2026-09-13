@@ -1,7 +1,7 @@
 # Evidence packet — Slice S0
 
 **Package:** `@company/mediation`  
-**Code home:** `company/platform/mediation/`  
+**Code home:** `company/product/mediation-engine/mediation/`  
 **Date:** 2026-07-18  
 **Slice:** S0 — package + domain + ports + boundary gauges  
 **Law:** D0, D1, D4 · software-architecture L2–L3  
@@ -11,7 +11,7 @@
 ## 1. File tree
 
 ```
-platform/mediation/
+product/mediation-engine/mediation/
   package.json
   package-lock.json
   tsconfig.json

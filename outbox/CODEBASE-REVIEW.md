@@ -2,7 +2,7 @@
 
 **Auditor:** CODEBASE-REVIEWER (read-only)
 **Date:** 2026-08-07 (session)
-**Audit target:** `platform/mediation` main worktree, tip `a0b3eca` (clean). Sibling worktree `/tmp/wt-polish` intentionally ignored.
+**Audit target:** `product/mediation-engine/mediation` main worktree, tip `a0b3eca` (clean). Sibling worktree `/tmp/wt-polish` intentionally ignored.
 **Method:** full read of `src/` (~70 files), `scripts/gauges/*`, `package.json`/`tsconfig`/`oxlint.json`, skim of `test/` (all 56 suites), `EVIDENCE-*.md`, `outbox/STATE-CODE-MAP.md`, `outbox/engine-selection-design.md`, design law (D0–D5 + `software-architecture.md` + `mediation-layer-concept.md`). `npm run check` executed (read-only): **PASS** — tsgo typecheck ✓, oxlint 0/0, **432 tests / 101 suites / 430 pass / 2 skip / 0 fail**, gauges OK (layer_import_violations=0, second_door_count=0, export_integrity=0, spawn_public_export_count=0, pack_parity_delta=0). Public export surface: **279** names.
 **Deliverable:** this file only. No code, no installs, no commits.
 

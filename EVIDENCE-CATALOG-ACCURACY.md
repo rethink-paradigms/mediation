@@ -74,7 +74,7 @@ email, product-researcher, visual-cortex, notion`.
 
 Fleet root resolution (in order): explicit `fleetAgentsRoot` option →
 `COMPANY_AGENTS_DIR` env → company convention (`<company>/agents` resolved from this
-package's location — mediation lives at `<company>/platform/mediation`, so the company root
+package's location — mediation lives at `<company>/product/mediation-engine/mediation`, so the company root
 is 5 levels up from `src/adapters/knowledge/`). No existing root → default stays
 engine-only (byte-identical to today — `mergeCatalogs` returns the base unchanged for a
 zero-node fleet).

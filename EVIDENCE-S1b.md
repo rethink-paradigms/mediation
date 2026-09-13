@@ -3,7 +3,7 @@
 **Package:** `@company/mediation`  
 **Date:** 2026-07-18  
 **Branch:** `slice/S1b-yaml-definition-loader`  
-**Worktree:** `platform/mediation-wt-s1b`  
+**Worktree:** `product/mediation-engine/mediation-wt-s1b`  
 **Law:** D0 Definition inert, D4 DefinitionLoader port  
 **Harness reference (read-only):** `company/agents/_harness/types.ts`, `loadConfig` in `prepare.ts`, `loadPrompt` in `resolve.ts`
 
@@ -97,7 +97,7 @@ When `company/agents/coding-agent/agent.yaml` exists relative to package (path i
 ## 5. Test / typecheck / gauges
 
 ```bash
-cd company/platform/mediation-wt-s1b
+cd company/product/mediation-engine/mediation-wt-s1b
 npm run check
 ```
 

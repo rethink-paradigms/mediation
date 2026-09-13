@@ -42,7 +42,7 @@ Settled / Failed still complete immediately (no wait).
 | Prior S5c settled/resume/fail-closed | regression green |
 
 ```bash
-cd company/platform/mediation
+cd company/product/mediation-engine/mediation
 npm run check
 ```
 

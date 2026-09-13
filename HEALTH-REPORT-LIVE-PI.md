@@ -51,7 +51,7 @@ for continuum, as always. Details: `EVIDENCE-POLISH.md`.
 Commands:
 
 ```bash
-cd company/platform/mediation
+cd company/product/mediation-engine/mediation
 MEDIATION_LIVE_PI=1 MEDIATION_LIVE_MODEL=deepseek/deepseek-v4-flash npm run test:live-pi
 npm run check   # must stay keyless / live-skipped
 ```
@@ -150,8 +150,8 @@ npm run check   # must stay keyless / live-skipped
 
 | Path | Role |
 |------|------|
-| `/Users/samanvayayagsen/project/rethink-paradigms/company/platform/mediation/HEALTH-REPORT-LIVE-PI.md` | This report |
-| `/Users/samanvayayagsen/project/rethink-paradigms/company/platform/mediation/EVIDENCE-LIVE-HEALTH.md` | Compact run evidence |
+| `/Users/samanvayayagsen/project/rethink-paradigms/company/product/mediation-engine/mediation/HEALTH-REPORT-LIVE-PI.md` | This report |
+| `/Users/samanvayayagsen/project/rethink-paradigms/company/product/mediation-engine/mediation/EVIDENCE-LIVE-HEALTH.md` | Compact run evidence |
 | `test/runtime/live-life-health.test.ts` | New gated health scenarios H1–H7 |
 | `test/pi/live-pi.test.ts` | L1 engine |
 | `test/integration/live-pi-factory.test.ts` | L2 factory |

@@ -1,6 +1,6 @@
 # Evidence — Prime engine adapter (fork `prime-agent`) for `@company/mediation`
 
-**Package:** `@company/mediation` (platform/mediation)  
+**Package:** `@company/mediation` (product/mediation-engine/mediation)  
 **Date:** 2026-08-07  
 **Baseline:** `npm run check` GREEN — 215 pass / 2 skip / 0 fail; gauges all 0
 (layer_import_violations=0, second_door_count=0, export_integrity=0,

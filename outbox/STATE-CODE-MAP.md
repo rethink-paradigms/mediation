@@ -1,4 +1,4 @@
-# STATE-CODE-MAP — @company/mediation (platform/mediation)
+# STATE-CODE-MAP — @company/mediation (product/mediation-engine/mediation)
 
 **Audit date:** 2026-08-07 (auditor: CODE-MAPPER, read-only)
 **Package:** `@company/mediation` — sole Agent Presence monocoque (README.md)

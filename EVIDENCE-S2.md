@@ -111,7 +111,7 @@ S2 engage always passes `parkIntent: false` (no park-tool adapter yet).
 ## 6. Test / typecheck commands
 
 ```bash
-cd company/platform/mediation
+cd company/product/mediation-engine/mediation
 npm run typecheck
 npm test
 npm run gauges

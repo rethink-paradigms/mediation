@@ -12,7 +12,7 @@ npm run check
 
 ## Git
 
-- **Repo root:** this package only (`company/platform/mediation/`). Do not `git init` parent `company/` or research trees.
+- **Repo root:** this package only (`company/product/mediation-engine/mediation/`). Do not `git init` parent `company/` or research trees.
 - **Branches:** `slice/S2b-short-description` (example: `slice/S2b-pi-engine-adapter`).
 - **Main:** no force-push; no history rewrite of accepted baselines.
 - **Commits:** complete sentences; mention slice id and which gauges/tests prove the change.

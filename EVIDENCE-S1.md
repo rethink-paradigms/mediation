@@ -104,7 +104,7 @@ Input `extensions: ["foo","bar","nope"]` on case-basic:
 ## 5. Test / typecheck commands
 
 ```bash
-cd company/platform/mediation
+cd company/product/mediation-engine/mediation
 npm test                 # 9 pass
 npm run typecheck        # clean
 npm run gauge:pack-plan  # pack hashes

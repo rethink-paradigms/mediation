@@ -363,7 +363,7 @@ export const FLEET_MANIFEST: readonly FleetAgentManifestEntry[] = [
  * Resolve the fleet agents root (directory containing agent.yaml dirs).
  * Precedence: explicit option > COMPANY_AGENTS_DIR env > company convention
  * (<company>/agents resolved from this module's location — mediation lives at
- * <company>/platform/mediation, so the company root is 5 levels up from
+ * <company>/product/mediation-engine/mediation, so the company root is 6 levels up from
  * src/adapters/knowledge). Returns undefined when no existing root is found
  * (graceful: the default knowledge catalog then stays engine-only, which is
  * exactly today's behavior).
@@ -384,7 +384,7 @@ export function resolveFleetAgentsRoot(
     process.env.COMPANY_AGENTS_DIR.length > 0
       ? [process.env.COMPANY_AGENTS_DIR]
       : []),
-    path.resolve(import.meta.dirname, "../../../../..", "agents"),
+    path.resolve(import.meta.dirname, "../../../../../..", "agents"),
   ];
   for (const c of candidates) {
     if (c.length > 0 && fs.existsSync(c)) {

@@ -1,7 +1,7 @@
 # EVIDENCE — S0g (git baseline + agent fail-fast toolchain)
 
 **Package:** `@company/mediation`  
-**Code home:** `company/platform/mediation/` (package-local git only)  
+**Code home:** `company/product/mediation-engine/mediation/` (package-local git only)  
 **Date:** 2026-07-18  
 **Primary baseline:** `3503096` (toolchain + S0–S2 tree). Further commits on `main` are evidence/docs only. Live SHAs: `git log --oneline`.
 
@@ -27,7 +27,7 @@ nothing to commit, working tree clean
 
 ### Scope
 
-- `git init` **only** under `platform/mediation/`.
+- `git init` **only** under `product/mediation-engine/mediation/`.
 - Parent trees (`company/platform/`, `company/`) were **not** initialized as git repos by this slice.
 - Local identity not forced: existing global `user.name` / `user.email` already set (`Lego-Researcher` / `research@lego.com`).
 - No remote, no force-push, no global config rewrites.

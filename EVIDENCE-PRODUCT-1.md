@@ -37,7 +37,7 @@ No live LLM. No monocoque dual-path. CapabilityResolver remains sole materialize
 ## Verify
 
 ```bash
-cd company/platform/mediation
+cd company/product/mediation-engine/mediation
 git log -1
 npm run check
 ```

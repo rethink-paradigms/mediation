@@ -39,7 +39,7 @@ leaf (may Parked)
 | Settled / fail-closed regressions | pass |
 
 ```bash
-cd company/platform/mediation && npm run check
+cd company/product/mediation-engine/mediation && npm run check
 ```
 
 **Tip after merge:** `3f6b229`.

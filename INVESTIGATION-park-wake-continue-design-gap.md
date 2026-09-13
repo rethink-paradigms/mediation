@@ -459,7 +459,7 @@ Same-process: don’t dispose; deliver via followUp/steer; no rematerialize.
 
 ```bash
 # Reconfirmed 2026-07-18 — pass documents failure
-cd company/platform/mediation
+cd company/product/mediation-engine/mediation
 MEDIATION_LIVE_PI=1 MEDIATION_LIVE_MODEL=deepseek/deepseek-v4-flash \
   node --experimental-strip-types --test --test-name-pattern 'H4b' \
   test/runtime/live-life-health.test.ts
