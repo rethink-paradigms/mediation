@@ -1,7 +1,16 @@
 {
-  "name": "@company/mediation",
-  "private": true,
+  "name": "@rethink-paradigms/mediation",
+  "version": "0.1.0",
+  "description": "The Agent Presence Monocoque — durable, medium-independent substrate for AI agents (Settled, Parked, Failed)",
+  "license": "MIT",
   "type": "module",
+  "bin": {
+    "mediation": "src/surfaces/cli.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rethink-paradigms/mediation.git"
+  },
   "scripts": {
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint -c oxlint.json",
@@ -18,7 +27,6 @@
     "cli": "node --experimental-strip-types src/surfaces/cli.ts"
   },
   "devDependencies": {
-    "@company/test-harness": "file:../../../platform/test-harness",
     "@types/node": "^22.0.0",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
     "oxlint": "^1.74.0",
@@ -28,8 +36,15 @@
     "@earendil-works/pi-coding-agent": "^0.80.10",
     "openworkflow": "^0.9.0",
     "yaml": "^2.9.0",
-    "zod": "^4.4.3",
-    "prime-agent": "file:/opt/homebrew/lib/node_modules/prime-agent"
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "prime-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "prime-agent": {
+      "optional": true
+    }
   },
   "engines": {
     "node": ">=22"
