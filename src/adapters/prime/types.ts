@@ -4,8 +4,13 @@
  * Unit tests: thin fake of this surface only (not a second EnginePort).
  */
 
-import type { AuthStorage, ModelRegistry } from "prime-agent";
 import type { OpenSessionRequest } from "../../ports/engine.ts";
+
+export type AuthStorageLike = unknown;
+export type ModelRegistryLike = {
+  getAll(): readonly { provider: string; id: string; [key: string]: unknown }[];
+  [key: string]: unknown;
+};
 
 /**
  * Minimal Prime event shape we map (session.subscribe).
@@ -99,9 +104,9 @@ export type PrimeEngineAdapterOptions = {
    */
   readonly authPath?: string;
   /** Auth storage override (unit path: AuthStorage.inMemory). */
-  readonly authStorage?: AuthStorage;
+  readonly authStorage?: AuthStorageLike;
   /** Model registry override (unit path: ModelRegistry.inMemory). */
-  readonly modelRegistry?: ModelRegistry;
+  readonly modelRegistry?: ModelRegistryLike;
   /** Prefer in-memory SessionManager (default true for mediation-owned D2). */
   readonly inMemorySession?: boolean;
   /** Optional logger for diagnostics. */

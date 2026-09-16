@@ -25,16 +25,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import {
-  AuthStorage,
-  createAgentSession,
-  DefaultResourceLoader,
-  getAgentDir,
-  ModelRegistry,
-  SessionManager,
-  SettingsManager,
-} from "prime-agent";
-
+import { MediationError } from "../../domain/errors.ts";
 import type { AgentDefinition, ModelSpec, ToolPolicy } from "../../domain/definition.ts";
 import type { PackLoadPlan } from "../../domain/packs.ts";
 import type { OpenSessionRequest } from "../../ports/engine.ts";
@@ -155,6 +146,29 @@ export async function openPrimeSession(
   req: OpenSessionRequest,
   opts: PrimeEngineAdapterOptions = {},
 ): Promise<OpenedPrimeSession> {
+  let primeModule: any;
+  try {
+    // Dynamic import ensures prime-agent is an optional dependency
+    primeModule = await import("prime-agent");
+  } catch (err) {
+    throw new MediationError(
+      "ENGINE_UNKNOWN",
+      `Engine "prime" is not available: the optional package "prime-agent" is not installed.\n` +
+        `To use the Prime engine adapter, install it: npm install prime-agent`,
+      { engine: "prime", cause: err },
+    );
+  }
+
+  const {
+    AuthStorage,
+    createAgentSession,
+    DefaultResourceLoader,
+    getAgentDir,
+    ModelRegistry,
+    SessionManager,
+    SettingsManager,
+  } = primeModule;
+
   const log = opts.log ?? (() => {});
   const cwd = req.cwd || req.definition.rootDir || process.cwd();
   const agentDir = getAgentDir();
@@ -196,7 +210,7 @@ export async function openPrimeSession(
     extensions: extensionPaths.length,
   });
 
-  let sessionManager: SessionManager;
+  let sessionManager: any;
   if (req.resume) {
     const resumePath = String(req.resume);
     if (fs.existsSync(resumePath)) {
@@ -262,7 +276,7 @@ export async function openPrimeSession(
 
   if (typeof session.bindExtensions === "function") {
     await session.bindExtensions({
-      onError: (err) => {
+      onError: (err: any) => {
         log("ERROR", "Extension bind error", {
           path: err.extensionPath,
           error: err.error,
